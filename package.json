@@ -2,10 +2,13 @@
   "name": "farm-game",
   "private": true,
   "version": "1.0.0",
+  "workspaces": [
+    "frontend"
+  ],
   "scripts": {
-    "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
-    "build": "npm run build --prefix frontend",
-    "start": "concurrently \"npm run start --prefix backend\" \"npm run preview --prefix frontend\""
+    "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --workspace frontend\"",
+    "build": "npm run build --workspace frontend",
+    "start": "concurrently \"npm run start --prefix backend\" \"npm run preview --workspace frontend\""
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
