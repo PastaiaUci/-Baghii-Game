@@ -31,6 +31,19 @@ class FarmScene extends Phaser.Scene {
     this.player.body.setSize(16, 18);
     this.player.body.setOffset(2, 2);
 
+    this.nameLabel = this.add.text(this.player.x, this.player.y - 22, 'Gdolf the Betrayer', {
+      fontFamily: 'Arial',
+      fontSize: '12px',
+      color: '#f5f5f5',
+      stroke: '#1f1f1f',
+      strokeThickness: 3,
+      align: 'center',
+      backgroundColor: 'rgba(0, 0, 0, 0.18)',
+      padding: { x: 4, y: 2 },
+    });
+    this.nameLabel.setOrigin(0.5, 0.5);
+    this.nameLabel.setDepth(30);
+
     const treePositions = [
       [260, 240], [420, 200], [530, 430], [760, 180], [980, 320],
       [1050, 720], [820, 840], [1250, 600], [1180, 980], [430, 880],
@@ -70,13 +83,36 @@ class FarmScene extends Phaser.Scene {
 
   createPlayerTexture() {
     const graphics = this.make.graphics();
-    graphics.fillStyle(0xf1c27d, 1);
-    graphics.fillRoundedRect(2, 2, 16, 18, 4);
-    graphics.fillStyle(0x7a4a30, 1);
-    graphics.fillRect(5, 0, 10, 7);
-    graphics.fillStyle(0x2d5d3a, 1);
-    graphics.fillRect(4, 6, 12, 3);
-    graphics.generateTexture('player', 20, 20);
+
+    graphics.fillStyle(0x4d3629, 1);
+    graphics.fillRect(7, 2, 18, 6);
+    graphics.fillRect(5, 3, 22, 3);
+
+    graphics.fillStyle(0xe9c59c, 1);
+    graphics.fillRect(7, 6, 18, 13);
+    graphics.fillRect(9, 9, 14, 10);
+
+    graphics.fillStyle(0x2a2a2a, 1);
+    graphics.fillRect(10, 10, 3, 2);
+    graphics.fillRect(19, 10, 3, 2);
+    graphics.fillRect(9, 14, 4, 2);
+    graphics.fillRect(19, 14, 4, 2);
+    graphics.fillRect(12, 15, 8, 2);
+
+    graphics.fillStyle(0x7e5841, 1);
+    graphics.fillRect(8, 17, 16, 3);
+    graphics.fillRect(12, 19, 8, 3);
+
+    graphics.fillStyle(0x58769a, 1);
+    graphics.fillRect(6, 20, 20, 8);
+    graphics.fillRect(10, 18, 12, 2);
+
+    graphics.fillStyle(0x3e2a20, 1);
+    graphics.fillRect(10, 15, 12, 2);
+    graphics.fillRect(11, 17, 10, 1);
+    graphics.fillRect(9, 19, 14, 1);
+
+    graphics.generateTexture('player', 32, 32);
     graphics.destroy();
   }
 
@@ -128,6 +164,11 @@ class FarmScene extends Phaser.Scene {
       this.player.setVelocity((moveX / length) * speed, (moveY / length) * speed);
     } else {
       this.player.setVelocity(0, 0);
+    }
+
+    if (this.nameLabel) {
+      this.nameLabel.x = this.player.x;
+      this.nameLabel.y = this.player.y - 22;
     }
   }
 }
