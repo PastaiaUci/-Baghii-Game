@@ -57,8 +57,8 @@ class FarmScene extends Phaser.Scene {
 
     this.playerWeapon = this.add.sprite(this.player.x, this.player.y, 'sword');
     this.playerWeapon.setDepth(24);
-    this.playerWeapon.setScale(0.75);
-    this.playerWeapon.setOrigin(0.5, 0.8);
+    this.playerWeapon.setScale(1.1);
+    this.playerWeapon.setOrigin(0.5, 0.75);
     this.playerWeapon.setVisible(false);
     this.playerWeapon.setAlpha(1);
 
@@ -499,12 +499,23 @@ class FarmScene extends Phaser.Scene {
     }
 
     this.inventoryList.innerHTML = this.inventory
-      .map((item, index) => `
-        <div class="inventory-slot ${item.type === 'empty' ? 'empty' : ''}" title="${item.label}">
-          ${item.type === 'empty' ? '' : item.label}
-          <span class="slot-number">${index + 1}</span>
-        </div>
-      `)
+      .map((item, index) => {
+        const content = item.type === 'sword'
+          ? `
+            <div class="inventory-sword">
+              <span class="sword-blade"></span>
+              <span class="sword-hilt"></span>
+            </div>
+          `
+          : '';
+
+        return `
+          <div class="inventory-slot ${item.type === 'empty' ? 'empty' : ''}" title="${item.label}">
+            ${content}
+            <span class="slot-number">${index + 1}</span>
+          </div>
+        `;
+      })
       .join('');
   }
 
@@ -561,15 +572,30 @@ class FarmScene extends Phaser.Scene {
 
   createSwordTexture() {
     const graphics = this.make.graphics();
-    graphics.fillStyle(0xd9d7d1, 1);
-    graphics.fillRect(6, 10, 4, 18);
-    graphics.fillRect(8, 2, 4, 12);
-    graphics.fillRect(10, 0, 2, 8);
-    graphics.fillStyle(0x8d7a4b, 1);
-    graphics.fillRect(4, 24, 12, 4);
-    graphics.fillStyle(0x8d8d8d, 1);
-    graphics.fillRect(8, 27, 4, 8);
-    graphics.generateTexture('sword', 20, 40);
+
+    graphics.fillStyle(0xe6edf3, 1);
+    graphics.fillRect(11, 0, 3, 18);
+    graphics.fillRect(9, 18, 7, 22);
+    graphics.fillRect(7, 35, 11, 4);
+
+    graphics.fillStyle(0xb9c4d0, 1);
+    graphics.fillRect(10, 3, 5, 16);
+    graphics.fillRect(8, 20, 9, 18);
+
+    graphics.fillStyle(0x3b2c20, 1);
+    graphics.fillRect(6, 38, 13, 4);
+    graphics.fillRect(9, 42, 7, 6);
+    graphics.fillRect(8, 48, 9, 8);
+
+    graphics.fillStyle(0xccb067, 1);
+    graphics.fillRect(5, 38, 3, 14);
+    graphics.fillRect(17, 38, 3, 14);
+
+    graphics.fillStyle(0x9aa7b2, 1);
+    graphics.fillRect(12, 0, 2, 18);
+    graphics.fillRect(11, 18, 4, 24);
+
+    graphics.generateTexture('sword', 24, 56);
     graphics.destroy();
   }
 
