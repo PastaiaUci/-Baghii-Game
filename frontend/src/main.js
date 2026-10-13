@@ -14,9 +14,34 @@ class FarmScene extends Phaser.Scene {
       key: String(index + 1),
     }));
     this.hotbarSlotKeys = ['1', '2', '3', '4', '5'];
+    this.gold = 0;
+    this.goldPickups = [];
+    this.hasCoupon = false;
+    this.missionKillVillagers = false;
+    this.nearbyCouponKeeper = null;
+    this.nearbyABG = null;
+    this.abgPicked = false;
+    this.dialogHideTimeout = null;
+    this.thoughtBubbleTimeout = null;
+    this.playerHealth = 30;
+    this.maxPlayerHealth = 30;
+    this.bossHealth = 50;
+    this.maxBossHealth = 50;
+    this.bossFightActive = false;
+    this.bossDefeated = false;
+    this.bossRoomActive = false;
+    this.bossTransitioning = false;
+    this.bossAttackCooldown = 0;
+    this.bossRoomBounds = { x: 560, y: 400, width: 460, height: 260 };
+    this.gameOver = false;
+    this.victoryDialog = null;
+    this.deathScreen = null;
     this.isAttacking = false;
     this.attackTimer = 0;
     this.attackDuration = 160;
+  }
+
+  preload() {
   }
 
   create() {
@@ -24,7 +49,9 @@ class FarmScene extends Phaser.Scene {
 
     this.createIntroScreen();
     this.createWorldGround();
+    this.createBossArena();
     this.setupQuestHud();
+    this.createGoldHud();
     this.createMinimap();
     this.createHotbar();
     this.createInventoryUi();
@@ -32,8 +59,10 @@ class FarmScene extends Phaser.Scene {
     this.obstacles = this.physics.add.staticGroup();
     this.villagerGroup = this.physics.add.group();
     this.projectiles = this.physics.add.group();
+    this.bossProjectiles = this.physics.add.group();
     this.itemGroup = this.physics.add.group();
     this.npcs = [];
+    this.worldObjects = [];
     this.pickupItems = [];
     this.nearbyPickup = null;
 
@@ -44,7 +73,11 @@ class FarmScene extends Phaser.Scene {
     this.createProjectileTexture();
     this.createVillageProps();
     this.createVillagers();
+    this.createCouponKeeper();
+    this.createBossTesterNpc();
     this.createSwordPickup();
+    this.createCoinTexture();
+    this.spawnRandomGoldCoins();
 
     const spawnX = 180;
     const spawnY = 220;
@@ -54,6 +87,7 @@ class FarmScene extends Phaser.Scene {
     this.player.setDepth(20);
     this.player.body.setSize(16, 18);
     this.player.body.setOffset(2, 2);
+    this.player.walkFrames = this.playerWalkFrames || ['player'];
 
     this.playerWeapon = this.add.sprite(this.player.x, this.player.y, 'sword');
     this.playerWeapon.setDepth(24);
@@ -62,7 +96,13 @@ class FarmScene extends Phaser.Scene {
     this.playerWeapon.setVisible(false);
     this.playerWeapon.setAlpha(1);
 
-    this.nameLabel = this.add.text(this.player.x, this.player.y - 22, 'Gdolf the Betrayer', {
+    this.createCouponTexture();
+    this.playerCoupon = this.add.sprite(this.player.x + 14, this.player.y + 10, 'coupon-item');
+    this.playerCoupon.setDepth(25);
+    this.playerCoupon.setScale(1.2);
+    this.playerCoupon.setVisible(false);
+
+    this.nameLabel = this.add.text(this.player.x, this.player.y - 22, 'Gdolf, The Betrayer', {
       fontFamily: 'Arial',
       fontSize: '12px',
       color: '#f5f5f5',
@@ -75,31 +115,7 @@ class FarmScene extends Phaser.Scene {
     this.nameLabel.setOrigin(0.5, 0.5);
     this.nameLabel.setDepth(30);
 
-    this.promptBox = this.add.container(0, 0);
-    this.promptBox.setVisible(false);
-    this.promptBox.setDepth(50);
-
-    this.promptBackground = this.add.graphics();
-    this.promptBackground.fillStyle(0x1d1d1d, 0.85);
-    this.promptBackground.fillRoundedRect(0, 0, 260, 90, 12);
-    this.promptBackground.generateTexture('promptBox', 260, 90);
-    this.promptBackground.destroy();
-
-    this.promptImage = this.add.image(0, 0, 'promptBox');
-    this.promptImage.setVisible(false);
-    this.promptImage.setOrigin(0, 0);
-
-    this.promptText = this.add.text(16, 18, '', {
-      fontFamily: 'Arial',
-      fontSize: '14px',
-      color: '#f2f2f2',
-      align: 'left',
-      wordWrap: { width: 220 },
-      lineSpacing: 4,
-    });
-    this.promptText.setVisible(false);
-
-    this.promptBox.add([this.promptImage, this.promptText]);
+    this.createDialogueBox();
 
     this.input.on('pointerdown', (pointer) => {
       if (this.inventoryUi && !this.inventoryUi.classList.contains('hidden')) {
@@ -107,6 +123,24 @@ class FarmScene extends Phaser.Scene {
       }
 
       const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+
+      if (this.couponKeeper) {
+        const keeperDistance = Phaser.Math.Distance.Between(worldPoint.x, worldPoint.y, this.couponKeeper.x, this.couponKeeper.y);
+        if (keeperDistance < 60) {
+          this.nearbyCouponKeeper = this.couponKeeper;
+          this.buyCoupon();
+          return;
+        }
+      }
+
+      if (this.abgNpc && !this.abgPicked) {
+        const abgDistance = Phaser.Math.Distance.Between(worldPoint.x, worldPoint.y, this.abgNpc.x, this.abgNpc.y);
+        if (abgDistance < 45) {
+          this.nearbyABG = this.abgNpc;
+          this.pickUpABG();
+          return;
+        }
+      }
 
       if (this.selectedWeapon === 'slot-1' && this.inventory[0]?.type === 'sword') {
         this.performAttack(worldPoint.x, worldPoint.y);
@@ -134,6 +168,10 @@ class FarmScene extends Phaser.Scene {
       if (key === '4') this.selectWeapon('slot-4');
       if (key === '5') this.selectWeapon('slot-5');
       if (key === 'e') {
+        if (this.nearbyABG) {
+          this.pickUpABG();
+          return;
+        }
         if (this.nearbyPickup) {
           this.pickUpSword();
           return;
@@ -228,7 +266,8 @@ class FarmScene extends Phaser.Scene {
 
     ground.generateTexture('ground', worldWidth, worldHeight);
     ground.destroy();
-    this.add.image(0, 0, 'ground').setOrigin(0, 0);
+    this.worldGround = this.add.image(0, 0, 'ground').setOrigin(0, 0);
+    this.worldGround.setDepth(0);
   }
 
   createVillageProps() {
@@ -245,6 +284,7 @@ class FarmScene extends Phaser.Scene {
       house.setScale(scale);
       house.body.setSize(110, 90);
       house.body.setOffset(18, 18);
+      this.worldObjects.push(house);
     });
 
     const fencePositions = [
@@ -259,19 +299,24 @@ class FarmScene extends Phaser.Scene {
       const fence = this.add.rectangle(x, y, w, h, 0x6b4b2e, 1);
       fence.setDepth(2);
       this.obstacles.add(fence);
+      this.worldObjects.push(fence);
     });
 
     const gate = this.obstacles.create(1170, 368, 'house');
     gate.setScale(0.55);
     gate.body.setSize(130, 90);
     gate.body.setOffset(12, 12);
+    this.worldObjects.push(gate);
 
     const well = this.add.circle(1240, 520, 22, 0x6c8088, 1);
     well.setDepth(4);
+    this.worldObjects.push(well);
     const wellTop = this.add.circle(1240, 502, 16, 0x9aa7a8, 1);
     wellTop.setDepth(5);
+    this.worldObjects.push(wellTop);
     const marker = this.add.rectangle(1238, 548, 48, 10, 0x7d7e72, 1);
     marker.setDepth(3);
+    this.worldObjects.push(marker);
   }
 
   createVillagers() {
@@ -288,6 +333,7 @@ class FarmScene extends Phaser.Scene {
       this.createNpcTexture(key, hair, shirt, skin, accent);
 
       const npc = this.physics.add.sprite(x, y, key);
+      npc.walkFrames = [key, `${key}-walk-1`, `${key}-walk-2`];
       npc.setDepth(15);
       npc.setCollideWorldBounds(true);
       npc.setImmovable(true);
@@ -346,13 +392,163 @@ class FarmScene extends Phaser.Scene {
     });
   }
 
+  createCouponKeeper() {
+    const key = 'coupon-keeper';
+    this.createNpcTexture(key, 0x3a2d27, 0x7d9c4d, 0xeac99b, 0xd8a15c);
+
+    this.couponKeeper = this.physics.add.sprite(140, 220, key);
+    this.couponKeeper.setDepth(15);
+    this.couponKeeper.setVisible(true);
+    this.couponKeeper.setCollideWorldBounds(true);
+    this.couponKeeper.setImmovable(true);
+    this.couponKeeper.body.setSize(18, 18);
+    this.couponKeeper.body.setOffset(7, 10);
+
+    this.couponKeeperLabel = this.add.text(140, 198, 'Cupon Keeper', {
+      fontFamily: 'Arial',
+      fontSize: '12px',
+      color: '#f5f5f5',
+      stroke: '#1f1f1f',
+      strokeThickness: 3,
+      align: 'center',
+      backgroundColor: 'rgba(0, 0, 0, 0.16)',
+      padding: { x: 4, y: 2 },
+    });
+    this.couponKeeperLabel.setOrigin(0.5, 0.5);
+    this.couponKeeperLabel.setDepth(30);
+
+    this.couponKeeperMarker = this.add.text(140, 170, '!', {
+      fontFamily: 'Arial',
+      fontSize: '10px',
+      color: '#ffd166',
+      stroke: '#1f1f1f',
+      strokeThickness: 3,
+    });
+    this.couponKeeperMarker.setOrigin(0.5, 0.5);
+    this.couponKeeperMarker.setDepth(30);
+    this.couponKeeperMarker.setVisible(true);
+
+    this.couponKeeper.setInteractive({ useHandCursor: true });
+    this.couponKeeper.on('pointerover', () => {
+      this.game.canvas.style.cursor = 'pointer';
+    });
+    this.couponKeeper.on('pointerout', () => {
+      this.game.canvas.style.cursor = 'default';
+    });
+
+    this.input.on('gameobjectdown', (pointer, gameObject) => {
+      if (gameObject === this.couponKeeper) {
+        this.nearbyCouponKeeper = this.couponKeeper;
+        this.buyCoupon();
+      }
+    });
+  }
+
+  buyCoupon() {
+    if (!this.nearbyCouponKeeper) {
+      return;
+    }
+
+    if (this.hasCoupon) {
+      this.showPrompt('Cupon Keeper', 'Ai deja un cupon.', this.nearbyCouponKeeper.x, this.nearbyCouponKeeper.y);
+      return;
+    }
+
+    if (this.gold < 100) {
+      this.showPrompt('Cupon Keeper', 'Am nevoie de 100 de lovele pentru un cupon.', this.nearbyCouponKeeper.x, this.nearbyCouponKeeper.y);
+      return;
+    }
+
+    this.gold -= 100;
+    this.hasCoupon = true;
+    this.updateGoldHud();
+
+    const emptySlotIndex = this.inventory.findIndex((item) => item.type === 'empty');
+    const targetIndex = emptySlotIndex !== -1 ? emptySlotIndex : 0;
+    this.inventory[targetIndex] = { type: 'coupon', label: 'Cupon', key: String(targetIndex + 1) };
+    this.updateInventoryList();
+    this.updateHotbarState();
+
+    this.showPrompt('Cupon Keeper', 'Ai primit un cupon!', this.nearbyCouponKeeper.x, this.nearbyCouponKeeper.y);
+    this.showThoughtBubble('Am un cupon acum, am nevoie si de o ABG... sigur un muist de-asta e casatorit cu una, ii execut pe toti');
+  }
+
+  createBossTesterNpc() {
+    const key = 'boss-tester';
+    this.createNpcTexture(key, 0x362915, 0x7a3d82, 0xeac99b, 0xf4d35d);
+
+    this.bossTesterNpc = this.physics.add.sprite(260, 220, key);
+    this.bossTesterNpc.setDepth(15);
+    this.bossTesterNpc.setVisible(true);
+    this.bossTesterNpc.setCollideWorldBounds(true);
+    this.bossTesterNpc.setImmovable(true);
+    this.bossTesterNpc.body.setSize(18, 18);
+    this.bossTesterNpc.body.setOffset(7, 10);
+
+    this.bossTesterLabel = this.add.text(260, 198, 'Boss Test', {
+      fontFamily: 'Arial',
+      fontSize: '12px',
+      color: '#f5f5f5',
+      stroke: '#1f1f1f',
+      strokeThickness: 3,
+      align: 'center',
+      backgroundColor: 'rgba(0, 0, 0, 0.16)',
+      padding: { x: 4, y: 2 },
+    });
+    this.bossTesterLabel.setOrigin(0.5, 0.5);
+    this.bossTesterLabel.setDepth(30);
+
+    this.bossTesterMarker = this.add.text(260, 170, '!', {
+      fontFamily: 'Arial',
+      fontSize: '10px',
+      color: '#ffd166',
+      stroke: '#1f1f1f',
+      strokeThickness: 3,
+    });
+    this.bossTesterMarker.setOrigin(0.5, 0.5);
+    this.bossTesterMarker.setDepth(30);
+    this.bossTesterMarker.setVisible(true);
+
+    this.bossTesterNpc.setInteractive({ useHandCursor: true });
+    this.bossTesterNpc.on('pointerover', () => {
+      this.game.canvas.style.cursor = 'pointer';
+    });
+    this.bossTesterNpc.on('pointerout', () => {
+      this.game.canvas.style.cursor = 'default';
+    });
+
+    this.input.on('gameobjectdown', (pointer, gameObject) => {
+      if (gameObject === this.bossTesterNpc) {
+        this.startBossFight();
+      }
+    });
+  }
+
+  startBossFight() {
+    if (!this.player || this.bossFightActive || this.bossRoomActive || this.bossTransitioning) {
+      return;
+    }
+
+    const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.bossTesterNpc?.x ?? this.player.x, this.bossTesterNpc?.y ?? this.player.y);
+    if (this.bossTesterNpc && distance > 90) {
+      return;
+    }
+
+    this.bossTransitioning = true;
+    this.showPrompt('Boss Test', 'Teleporting to boss fight...');
+    this.enterBossRoom();
+  }
+
   createIntroScreen() {
     const overlay = document.createElement('div');
     overlay.id = 'intro-overlay';
     overlay.innerHTML = `
       <div class="intro-panel">
+        <div class="intro-brand">
+          <img src="/assets/a034172d413676cfdf5469245999fb2fdc683105_full.jpg" alt="Baghii logo" class="intro-logo" />
+        </div>
         <p class="intro-kicker">The story begins</p>
-        <h1>Gdolf the Betrayer</h1>
+        <h1>Gdolf, The Betrayer</h1>
         <p class="intro-text">
           Gdolf kept refusing his friends. Every time they asked him to come to CS2, to play with them,
           to join the squad, he said no. He always had another excuse, another grind, another match to prepare for.
@@ -396,6 +592,46 @@ class FarmScene extends Phaser.Scene {
     this.questHud.textContent = 'Level 1 - Find Tete, The Gooner';
     this.questHud.className = 'quest-hud';
     document.body.appendChild(this.questHud);
+  }
+
+  createGoldHud() {
+    this.goldHud = document.createElement('div');
+    this.goldHud.className = 'gold-hud';
+    this.goldHud.innerHTML = `
+      <span class="gold-label">Gold</span>
+      <span class="gold-value">0</span>
+    `;
+    this.goldValueNode = this.goldHud.querySelector('.gold-value');
+    document.body.appendChild(this.goldHud);
+    this.updateGoldHud();
+  }
+
+  updateGoldHud() {
+    if (!this.goldValueNode) {
+      return;
+    }
+
+    this.goldValueNode.textContent = String(this.gold);
+  }
+
+  updateHealthHud() {
+    if (!this.questHud) {
+      return;
+    }
+
+    if (this.bossFightActive) {
+      this.questHud.textContent = `Boss Fight - Gdolf ${this.playerHealth}/${this.maxPlayerHealth} | Tete ${this.bossHealth}/${this.maxBossHealth}`;
+      return;
+    }
+
+    if (this.bossDefeated) {
+      this.questHud.textContent = 'Boss defeated - Tete is down';
+      return;
+    }
+
+    if (this.missionKillVillagers) {
+      this.questHud.textContent = 'Next Mission - Kill all villagers';
+    }
   }
 
   createMinimap() {
@@ -462,6 +698,14 @@ class FarmScene extends Phaser.Scene {
           <span class="sword-blade"></span>
           <span class="sword-hilt"></span>
         `;
+      } else if (item.type === 'coupon') {
+        itemNode.className = 'hotbar-item hotbar-coupon';
+        itemNode.innerHTML = `
+          <span class="coupon-ticket"></span>
+        `;
+      } else if (item.type === 'abg') {
+        itemNode.className = 'hotbar-item hotbar-abg';
+        itemNode.textContent = 'ABG';
       } else {
         itemNode.className = 'hotbar-item hotbar-empty';
         itemNode.innerHTML = '';
@@ -507,7 +751,17 @@ class FarmScene extends Phaser.Scene {
               <span class="sword-hilt"></span>
             </div>
           `
-          : '';
+          : item.type === 'coupon'
+            ? `
+              <div class="inventory-coupon">
+                <span class="coupon-ticket"></span>
+              </div>
+            `
+            : item.type === 'abg'
+              ? `
+                <div class="inventory-abg">ABG</div>
+              `
+              : '';
 
         return `
           <div class="inventory-slot ${item.type === 'empty' ? 'empty' : ''}" title="${item.label}">
@@ -536,38 +790,65 @@ class FarmScene extends Phaser.Scene {
   }
 
   createPlayerTexture() {
-    const graphics = this.make.graphics();
+    const buildFrame = (leftLegOffset, rightLegOffset, leftArmOffset, rightArmOffset) => {
+      const graphics = this.make.graphics();
 
-    graphics.fillStyle(0x4d3629, 1);
-    graphics.fillRect(7, 2, 18, 6);
-    graphics.fillRect(5, 3, 22, 3);
+      graphics.fillStyle(0x4d3629, 1);
+      graphics.fillRect(7, 2, 18, 6);
+      graphics.fillRect(5, 3, 22, 3);
 
-    graphics.fillStyle(0xe9c59c, 1);
-    graphics.fillRect(7, 6, 18, 13);
-    graphics.fillRect(9, 9, 14, 10);
+      graphics.fillStyle(0xe9c59c, 1);
+      graphics.fillRect(7, 6, 18, 13);
+      graphics.fillRect(9, 9, 14, 10);
 
-    graphics.fillStyle(0x2a2a2a, 1);
-    graphics.fillRect(10, 10, 3, 2);
-    graphics.fillRect(19, 10, 3, 2);
-    graphics.fillRect(9, 14, 4, 2);
-    graphics.fillRect(19, 14, 4, 2);
-    graphics.fillRect(12, 15, 8, 2);
+      graphics.fillStyle(0x2a2a2a, 1);
+      graphics.fillRect(10, 10, 3, 2);
+      graphics.fillRect(19, 10, 3, 2);
+      graphics.fillRect(9, 14, 4, 2);
+      graphics.fillRect(19, 14, 4, 2);
+      graphics.fillRect(12, 15, 8, 2);
 
-    graphics.fillStyle(0x7e5841, 1);
-    graphics.fillRect(8, 17, 16, 3);
-    graphics.fillRect(12, 19, 8, 3);
+      graphics.fillStyle(0x7e5841, 1);
+      graphics.fillRect(8, 17, 16, 3);
+      graphics.fillRect(12, 19, 8, 3);
 
-    graphics.fillStyle(0x58769a, 1);
-    graphics.fillRect(6, 20, 20, 8);
-    graphics.fillRect(10, 18, 12, 2);
+      graphics.fillStyle(0x58769a, 1);
+      graphics.fillRect(6, 20, 20, 8);
+      graphics.fillRect(10, 18, 12, 2);
 
-    graphics.fillStyle(0x3e2a20, 1);
-    graphics.fillRect(10, 15, 12, 2);
-    graphics.fillRect(11, 17, 10, 1);
-    graphics.fillRect(9, 19, 14, 1);
+      graphics.fillStyle(0x3e2a20, 1);
+      graphics.fillRect(10, 15, 12, 2);
+      graphics.fillRect(11, 17, 10, 1);
+      graphics.fillRect(9, 19, 14, 1);
 
-    graphics.generateTexture('player', 32, 32);
-    graphics.destroy();
+      graphics.fillStyle(0xe9c59c, 1);
+      graphics.fillRect(3 + leftArmOffset, 20, 4, 9);
+      graphics.fillRect(25 + rightArmOffset, 20, 4, 9);
+      graphics.fillRect(9 + leftLegOffset, 28, 5, 10);
+      graphics.fillRect(18 + rightLegOffset, 28, 5, 10);
+
+      graphics.fillStyle(0x3d2f2a, 1);
+      graphics.fillRect(6 + leftLegOffset, 28, 5, 4);
+      graphics.fillRect(21 + rightLegOffset, 28, 5, 4);
+      graphics.fillRect(9 + leftLegOffset, 37, 7, 2);
+      graphics.fillRect(16 + rightLegOffset, 37, 7, 2);
+
+      return graphics;
+    };
+
+    const idleGraphics = buildFrame(0, 0, 0, 0);
+    idleGraphics.generateTexture('player', 32, 40);
+    idleGraphics.destroy();
+
+    const walkOneGraphics = buildFrame(1, -1, 1, -1);
+    walkOneGraphics.generateTexture('player-walk-1', 32, 40);
+    walkOneGraphics.destroy();
+
+    const walkTwoGraphics = buildFrame(-1, 1, -1, 1);
+    walkTwoGraphics.generateTexture('player-walk-2', 32, 40);
+    walkTwoGraphics.destroy();
+
+    this.playerWalkFrames = ['player', 'player-walk-1', 'player-walk-2'];
   }
 
   createSwordTexture() {
@@ -606,12 +887,129 @@ class FarmScene extends Phaser.Scene {
     sword.setImmovable(true);
     this.itemGroup.add(sword);
 
+    const pickupGlow = this.add.circle(sword.x, sword.y, 26, 0x7fe7ff, 0.38);
+    pickupGlow.setDepth(11);
+    pickupGlow.setBlendMode(Phaser.BlendModes.SCREEN);
+    this.tweens.add({
+      targets: pickupGlow,
+      scale: { from: 0.8, to: 1.35 },
+      alpha: { from: 0.35, to: 0.8 },
+      duration: 700,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+
     this.pickupItems.push({
       id: 'sword',
       sprite: sword,
+      glow: pickupGlow,
       picked: false,
       x: sword.x,
       y: sword.y,
+    });
+  }
+
+  createCoinTexture() {
+    const graphics = this.make.graphics();
+    graphics.fillStyle(0xf5c451, 1);
+    graphics.fillCircle(10, 10, 9);
+    graphics.lineStyle(2, 0xfde7a1, 1);
+    graphics.strokeCircle(10, 10, 8);
+    graphics.fillStyle(0xe3a31a, 1);
+    graphics.fillRect(8, 4, 4, 11);
+    graphics.fillRect(12, 4, 4, 11);
+    graphics.generateTexture('gold-coin', 20, 20);
+    graphics.destroy();
+  }
+
+  createCouponTexture() {
+    const graphics = this.make.graphics();
+    graphics.clear();
+    graphics.fillStyle(0xf0d777, 1);
+    graphics.fillRoundedRect(2, 2, 20, 24, 5);
+    graphics.fillStyle(0xf7f4d1, 1);
+    graphics.fillRoundedRect(6, 6, 12, 16, 3);
+    graphics.fillStyle(0x8c6826, 1);
+    graphics.fillRect(9, 8, 2, 12);
+    graphics.fillStyle(0x8c6826, 1);
+    graphics.fillRect(14, 8, 2, 12);
+    graphics.generateTexture('coupon-item', 24, 28);
+    graphics.destroy();
+  }
+
+  spawnRandomGoldCoins() {
+    const positions = [
+      { x: 260, y: 420 },
+      { x: 440, y: 860 },
+      { x: 640, y: 430 },
+      { x: 900, y: 840 },
+      { x: 1000, y: 260 },
+      { x: 1320, y: 620 },
+      { x: 1240, y: 930 },
+      { x: 380, y: 1060 },
+      { x: 154, y: 840 },
+      { x: 740, y: 1010 },
+      { x: 1070, y: 1080 },
+      { x: 1200, y: 760 },
+    ];
+
+    while (positions.length < 18) {
+      positions.push({
+        x: 80 + Math.random() * (worldWidth - 160),
+        y: 80 + Math.random() * (worldHeight - 160),
+      });
+    }
+
+    positions.forEach((position, index) => {
+      const coin = this.add.sprite(position.x, position.y, 'gold-coin');
+      coin.setDepth(18);
+      coin.setScale(1.1);
+
+      this.tweens.add({
+        targets: coin,
+        y: position.y - 10,
+        duration: 700 + (index % 5) * 80,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+
+      this.goldPickups.push({
+        sprite: coin,
+        value: 10 + (index % 4) * 5,
+        collected: false,
+      });
+    });
+  }
+
+  collectGoldPickup(pickup) {
+    if (!pickup || pickup.collected) {
+      return;
+    }
+
+    pickup.collected = true;
+    this.gold += pickup.value;
+    this.updateGoldHud();
+    pickup.sprite.destroy();
+
+    const goldText = this.add.text(this.player.x, this.player.y - 26, `+${pickup.value} Gold`, {
+      fontFamily: 'Arial',
+      fontSize: '14px',
+      color: '#ffd166',
+      stroke: '#1f1f1f',
+      strokeThickness: 4,
+      align: 'center',
+    });
+    goldText.setOrigin(0.5, 0.5);
+    goldText.setDepth(60);
+    this.tweens.add({
+      targets: goldText,
+      y: this.player.y - 50,
+      alpha: 0,
+      duration: 500,
+      ease: 'Sine.easeOut',
+      onComplete: () => goldText.destroy(),
     });
   }
 
@@ -623,6 +1021,9 @@ class FarmScene extends Phaser.Scene {
 
     pickup.picked = true;
     pickup.sprite.destroy();
+    if (pickup.glow) {
+      pickup.glow.destroy();
+    }
     this.nearbyPickup = null;
 
     this.inventory[0] = { type: 'sword', label: 'Sword', key: '1' };
@@ -632,42 +1033,100 @@ class FarmScene extends Phaser.Scene {
     this.hidePrompt();
   }
 
+  pickUpABG() {
+    if (!this.abgNpc || this.abgPicked) {
+      return;
+    }
+
+    this.abgPicked = true;
+    this.nearbyABG = null;
+    const emptySlotIndex = this.inventory.findIndex((item) => item.type === 'empty');
+    const targetIndex = emptySlotIndex !== -1 ? emptySlotIndex : 0;
+    this.inventory[targetIndex] = { type: 'abg', label: 'ABG', key: String(targetIndex + 1) };
+    this.updateInventoryList();
+    this.updateHotbarState();
+    this.abgNpc.destroy();
+    if (this.abgNpcLabel) {
+      this.abgNpcLabel.destroy();
+    }
+    this.hidePrompt();
+    this.showThoughtBubble('ABG luata. E time to move on.');
+
+    if (this.hasRequiredBossItems() && !this.bossFightActive && !this.bossTransitioning) {
+      this.bossTransitioning = true;
+      this.enterBossRoom();
+    }
+  }
+
   createNpcTexture(key, hairColor, shirtColor, skinColor, accentColor) {
-    const graphics = this.make.graphics();
+    const buildFrame = (leftLegOffset, rightLegOffset, leftArmOffset, rightArmOffset) => {
+      const graphics = this.make.graphics();
 
-    graphics.fillStyle(hairColor, 1);
-    graphics.fillRect(8, 2, 16, 8);
-    graphics.fillRect(6, 4, 20, 5);
+      graphics.fillStyle(hairColor, 1);
+      graphics.fillRect(8, 2, 16, 8);
+      graphics.fillRect(6, 4, 20, 5);
 
-    graphics.fillStyle(skinColor, 1);
-    graphics.fillRect(8, 7, 16, 12);
-    graphics.fillRect(10, 10, 12, 9);
+      graphics.fillStyle(skinColor, 1);
+      graphics.fillRect(8, 7, 16, 12);
+      graphics.fillRect(10, 10, 12, 9);
 
-    graphics.fillStyle(0x1c1c1c, 1);
-    graphics.fillRect(11, 10, 3, 2);
-    graphics.fillRect(18, 10, 3, 2);
-    graphics.fillRect(11, 15, 4, 2);
-    graphics.fillRect(17, 15, 4, 2);
-    graphics.fillRect(13, 17, 6, 2);
+      graphics.fillStyle(0x1c1c1c, 1);
+      graphics.fillRect(11, 10, 3, 2);
+      graphics.fillRect(18, 10, 3, 2);
+      graphics.fillRect(11, 15, 4, 2);
+      graphics.fillRect(17, 15, 4, 2);
+      graphics.fillRect(13, 17, 6, 2);
 
-    graphics.fillStyle(accentColor, 1);
-    graphics.fillRect(10, 18, 12, 3);
-    graphics.fillRect(12, 20, 8, 3);
+      graphics.fillStyle(accentColor, 1);
+      graphics.fillRect(10, 18, 12, 3);
+      graphics.fillRect(12, 20, 8, 3);
 
-    graphics.fillStyle(shirtColor, 1);
-    graphics.fillRect(6, 21, 20, 8);
-    graphics.fillRect(10, 19, 12, 2);
+      graphics.fillStyle(shirtColor, 1);
+      graphics.fillRect(6, 21, 20, 8);
+      graphics.fillRect(10, 19, 12, 2);
 
-    graphics.generateTexture(key, 32, 32);
-    graphics.destroy();
+      graphics.fillStyle(skinColor, 1);
+      graphics.fillRect(3 + leftArmOffset, 20, 4, 9);
+      graphics.fillRect(25 + rightArmOffset, 20, 4, 9);
+      graphics.fillRect(9 + leftLegOffset, 28, 5, 8);
+      graphics.fillRect(18 + rightLegOffset, 28, 5, 8);
+
+      graphics.fillStyle(0x3e2f2b, 1);
+      graphics.fillRect(6 + leftLegOffset, 28, 5, 4);
+      graphics.fillRect(21 + rightLegOffset, 28, 5, 4);
+      graphics.fillRect(9 + leftLegOffset, 36, 7, 2);
+      graphics.fillRect(16 + rightLegOffset, 36, 7, 2);
+
+      return graphics;
+    };
+
+    const idleGraphics = buildFrame(0, 0, 0, 0);
+    idleGraphics.generateTexture(key, 32, 40);
+    idleGraphics.destroy();
+
+    const walkOneGraphics = buildFrame(1, -1, 1, -1);
+    walkOneGraphics.generateTexture(`${key}-walk-1`, 32, 40);
+    walkOneGraphics.destroy();
+
+    const walkTwoGraphics = buildFrame(-1, 1, -1, 1);
+    walkTwoGraphics.generateTexture(`${key}-walk-2`, 32, 40);
+    walkTwoGraphics.destroy();
   }
 
   createProjectileTexture() {
     const graphics = this.make.graphics();
-    graphics.fillStyle(0xffd166, 1);
+    graphics.fillStyle(0xf6f7ff, 1);
     graphics.fillCircle(8, 8, 8);
     graphics.generateTexture('projectile', 16, 16);
     graphics.destroy();
+
+    const beerGraphics = this.make.graphics();
+    beerGraphics.fillStyle(0xf0b64a, 1);
+    beerGraphics.fillRoundedRect(2, 2, 12, 12, 4);
+    beerGraphics.fillStyle(0xd79b34, 1);
+    beerGraphics.fillRect(6, 1, 4, 3);
+    beerGraphics.generateTexture('beer-projectile', 16, 16);
+    beerGraphics.destroy();
   }
 
   createTreeTexture() {
@@ -711,6 +1170,23 @@ class FarmScene extends Phaser.Scene {
     this.attackOriginAngle = attackAngle + Math.PI / 2;
 
     let hit = false;
+
+    if (this.bossFightActive && this.boss) {
+      const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.boss.x, this.boss.y);
+      const aimVectorX = targetX - this.player.x;
+      const aimVectorY = targetY - this.player.y;
+      const aimLength = Math.hypot(aimVectorX, aimVectorY) || 1;
+      const facingX = aimVectorX / aimLength;
+      const facingY = aimVectorY / aimLength;
+      const toBossX = this.boss.x - this.player.x;
+      const toBossY = this.boss.y - this.player.y;
+      const dot = (toBossX * facingX) + (toBossY * facingY);
+
+      if (distance <= 80 && dot > -0.2) {
+        this.damageBoss(2);
+        hit = true;
+      }
+    }
 
     this.npcs.forEach((villager) => {
       if (!villager.alive) {
@@ -792,6 +1268,11 @@ class FarmScene extends Phaser.Scene {
     villager.label.setVisible(false);
     villager.marker.setVisible(false);
 
+    const allVillagersDead = this.npcs.every((entry) => !entry.alive);
+    if (this.missionKillVillagers && allVillagersDead) {
+      this.spawnABGNpc();
+    }
+
     const grave = this.add.rectangle(villager.npc.x, villager.npc.y + 20, 22, 10, 0x7c7c7c, 0.9);
     grave.setDepth(9);
 
@@ -849,6 +1330,307 @@ class FarmScene extends Phaser.Scene {
     graveTop.setAlpha(1);
   }
 
+  spawnABGNpc() {
+    if (this.abgNpc || this.abgPicked) {
+      return;
+    }
+
+    this.createNpcTexture('abg-female', 0x2a1d2a, 0x9d233a, 0xe5b08d, 0xa15967);
+    this.abgNpc = this.physics.add.sprite(1280, 920, 'abg-female');
+    this.abgNpc.setDepth(15);
+    this.abgNpc.setCollideWorldBounds(true);
+    this.abgNpc.setImmovable(true);
+    this.abgNpc.body.setSize(18, 18);
+    this.abgNpc.body.setOffset(7, 10);
+
+    this.abgNpcLabel = this.add.text(1280, 900, 'ABG', {
+      fontFamily: 'Arial',
+      fontSize: '12px',
+      color: '#ffced9',
+      stroke: '#1f1f1f',
+      strokeThickness: 3,
+      align: 'center',
+      backgroundColor: 'rgba(0, 0, 0, 0.16)',
+      padding: { x: 4, y: 2 },
+    });
+    this.abgNpcLabel.setOrigin(0.5, 0.5);
+    this.abgNpcLabel.setDepth(30);
+
+    this.abgNpcMarker = this.add.text(1280, 886, '!', {
+      fontFamily: 'Arial',
+      fontSize: '10px',
+      color: '#ffd166',
+      stroke: '#1f1f1f',
+      strokeThickness: 3,
+    });
+    this.abgNpcMarker.setOrigin(0.5, 0.5);
+    this.abgNpcMarker.setDepth(30);
+    this.abgNpcMarker.setVisible(true);
+
+    this.showThoughtBubble('ABG e aici. E timpul sa o iau.');
+    if (this.questHud) {
+      this.questHud.textContent = 'Final objective - Take ABG';
+    }
+  }
+
+  createBossArena() {
+    this.bossRoomLayer = this.add.container();
+
+    const roomBg = this.add.rectangle(830, 610, 500, 300, 0x290d18, 1);
+    roomBg.setDepth(0);
+    this.bossRoomLayer.add(roomBg);
+
+    const floor = this.add.rectangle(830, 610, 420, 190, 0x4b2e39, 1);
+    floor.setDepth(1);
+    this.bossRoomLayer.add(floor);
+
+    const wallTop = this.add.rectangle(830, 500, 420, 22, 0x582534, 1);
+    wallTop.setDepth(2);
+    this.bossRoomLayer.add(wallTop);
+
+    const wallBottom = this.add.rectangle(830, 720, 420, 22, 0x582534, 1);
+    wallBottom.setDepth(2);
+    this.bossRoomLayer.add(wallBottom);
+
+    const wallLeft = this.add.rectangle(620, 610, 22, 220, 0x582534, 1);
+    wallLeft.setDepth(2);
+    this.bossRoomLayer.add(wallLeft);
+
+    const wallRight = this.add.rectangle(1040, 610, 22, 220, 0x582534, 1);
+    wallRight.setDepth(2);
+    this.bossRoomLayer.add(wallRight);
+
+    const altar = this.add.rectangle(830, 675, 120, 48, 0x7f1d2d, 1);
+    altar.setDepth(3);
+    this.bossRoomLayer.add(altar);
+
+    this.bossRoomLayer.setVisible(false);
+  }
+
+  showFullscreenDialog(title, message, type = 'default') {
+    const overlay = document.createElement('div');
+    overlay.className = `fullscreen-dialog ${type}`;
+    overlay.innerHTML = `
+      <div class="fullscreen-panel">
+        <div class="fullscreen-title">${title}</div>
+        <div class="fullscreen-text">${message}</div>
+        <button type="button" class="fullscreen-button">OK</button>
+      </div>
+    `;
+
+    const button = overlay.querySelector('.fullscreen-button');
+    button.addEventListener('click', () => {
+      overlay.remove();
+    });
+
+    document.body.appendChild(overlay);
+    return overlay;
+  }
+
+  showDeathScreen() {
+    if (this.deathScreen) {
+      return;
+    }
+
+    this.deathScreen = this.showFullscreenDialog('MUIE', 'Tete, The Gooner a te-a rupt in piept. Ai murit.', 'death');
+    this.gameOver = true;
+    this.player.setVelocity(0, 0);
+    this.bossFightActive = false;
+  }
+
+  showBossVictoryDialog() {
+    if (this.victoryDialog) {
+      return;
+    }
+
+    this.victoryDialog = this.showFullscreenDialog('Tete, The Gooner', 'Asta e tot. Ai luat ce era al meu. Acum pleci cu ABG-ul si cuponul, dar nu uita: am sa te caut si data viitoare.', 'victory');
+  }
+
+  hasRequiredBossItems() {
+    const hasCoupon = this.hasCoupon || this.inventory.some((item) => item.type === 'coupon');
+    const hasABG = this.abgPicked || this.inventory.some((item) => item.type === 'abg');
+    return hasCoupon && hasABG;
+  }
+
+  checkBossTrigger() {
+    if (this.bossFightActive || this.bossDefeated || this.bossRoomActive || this.bossTransitioning) {
+      return;
+    }
+
+    if (this.hasRequiredBossItems() && this.player) {
+      this.bossTransitioning = true;
+      this.enterBossRoom();
+    }
+  }
+
+  enterBossRoom() {
+    if (this.bossRoomActive || this.bossFightActive) {
+      return;
+    }
+
+    this.bossTransitioning = false;
+    this.bossFightActive = true;
+    this.bossRoomActive = true;
+    this.worldGround.setVisible(false);
+    this.worldObjects.forEach((obj) => obj.setVisible(false));
+    this.npcs.forEach((villager) => {
+      villager.npc.setVisible(false);
+      villager.label.setVisible(false);
+      villager.marker.setVisible(false);
+      if (villager.minimapMarker) {
+        villager.minimapMarker.style.display = 'none';
+      }
+    });
+    this.goldPickups.forEach((pickup) => {
+      pickup.sprite.setVisible(false);
+    });
+    if (this.couponKeeper) {
+      this.couponKeeper.setVisible(false);
+      this.couponKeeperLabel.setVisible(false);
+      this.couponKeeperMarker.setVisible(false);
+    }
+    this.bossRoomLayer.setVisible(true);
+    this.physics.world.setBounds(this.bossRoomBounds.x, this.bossRoomBounds.y, this.bossRoomBounds.width, this.bossRoomBounds.height);
+    this.cameras.main.setBounds(this.bossRoomBounds.x, this.bossRoomBounds.y, this.bossRoomBounds.width, this.bossRoomBounds.height);
+    this.player.setPosition(this.bossRoomBounds.x + 140, this.bossRoomBounds.y + 170);
+    this.player.setVelocity(0, 0);
+    this.player.setCollideWorldBounds(true);
+    this.cameras.main.setScroll(this.bossRoomBounds.x, this.bossRoomBounds.y);
+    this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
+    this.cameras.main.flash(250, 180, 0, 0);
+    this.showPrompt('Tete, The Gooner', 'GIVE ME THE ABG AND THE CUPON');
+    this.questHud.textContent = 'Boss Fight - Gdolf 30/30 | Tete 50/50';
+    this.createBoss();
+    this.updateHealthHud();
+  }
+
+  createBoss() {
+    if (this.boss) {
+      return;
+    }
+
+    const graphics = this.make.graphics();
+    graphics.fillStyle(0x5f1d2c, 1);
+    graphics.fillRect(0, 0, 34, 50);
+    graphics.fillStyle(0xc7c9d1, 1);
+    graphics.fillRect(7, 7, 20, 12);
+    graphics.fillStyle(0x2d1a1a, 1);
+    graphics.fillRect(9, 9, 4, 4);
+    graphics.fillRect(20, 9, 4, 4);
+    graphics.fillStyle(0x8c0d1b, 1);
+    graphics.fillRect(10, 18, 14, 6);
+    graphics.fillStyle(0x3d2a2a, 1);
+    graphics.fillRect(6, 28, 6, 16);
+    graphics.fillRect(22, 28, 6, 16);
+    graphics.fillStyle(0x7f1a2d, 1);
+    graphics.fillRect(14, 40, 6, 8);
+    graphics.generateTexture('tete-boss', 34, 50);
+    graphics.destroy();
+
+    this.boss = this.physics.add.sprite(920, 610, 'tete-boss');
+    this.boss.setDepth(30);
+    this.boss.setScale(1.9);
+    this.boss.setCollideWorldBounds(true);
+    this.boss.setImmovable(true);
+    this.boss.body.setSize(48, 68);
+    this.boss.body.setOffset(8, 14);
+
+    this.bossLabel = this.add.text(920, 560, 'Tete, The Gooner', {
+      fontFamily: 'Arial',
+      fontSize: '12px',
+      color: '#ffe0ee',
+      stroke: '#1f1f1f',
+      strokeThickness: 3,
+      align: 'center',
+      backgroundColor: 'rgba(0, 0, 0, 0.15)',
+      padding: { x: 4, y: 2 },
+    });
+    this.bossLabel.setOrigin(0.5, 0.5);
+    this.bossLabel.setDepth(35);
+    this.bossHealthText = this.add.text(920, 580, '50/50', {
+      fontFamily: 'Arial',
+      fontSize: '12px',
+      color: '#ffd166',
+      stroke: '#1f1f1f',
+      strokeThickness: 4,
+      align: 'center',
+    });
+    this.bossHealthText.setOrigin(0.5, 0.5);
+    this.bossHealthText.setDepth(35);
+  }
+
+  damageBoss(amount) {
+    if (!this.bossFightActive || !this.boss) {
+      return;
+    }
+
+    this.bossHealth = Math.max(0, this.bossHealth - amount);
+    this.boss.setTint(0xff7d7d);
+    this.time.delayedCall(120, () => this.boss.clearTint());
+    this.bossHealthText.setText(`${this.bossHealth}/${this.maxBossHealth}`);
+    this.questHud.textContent = `Boss Fight - Gdolf ${this.playerHealth}/${this.maxPlayerHealth} | Tete ${this.bossHealth}/${this.maxBossHealth}`;
+
+    if (this.bossHealth <= 0) {
+      this.finishBossFight();
+    }
+  }
+
+  finishBossFight() {
+    this.bossFightActive = false;
+    this.bossDefeated = true;
+    this.bossRoomActive = false;
+    this.bossTransitioning = false;
+    this.gameOver = false;
+    this.bossRoomLayer.setVisible(false);
+    this.worldGround.setVisible(true);
+    this.worldObjects.forEach((obj) => obj.setVisible(true));
+    this.npcs.forEach((villager) => {
+      villager.npc.setVisible(true);
+      villager.label.setVisible(true);
+      villager.marker.setVisible(true);
+      if (villager.minimapMarker) {
+        villager.minimapMarker.style.display = 'block';
+      }
+    });
+    this.goldPickups.forEach((pickup) => {
+      pickup.sprite.setVisible(true);
+    });
+    if (this.couponKeeper) {
+      this.couponKeeper.setVisible(true);
+      this.couponKeeperLabel.setVisible(true);
+      this.couponKeeperMarker.setVisible(true);
+    }
+    this.physics.world.setBounds(0, 0, worldWidth, worldHeight);
+    this.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
+    this.player.setPosition(180, 220);
+    this.cameras.main.setScroll(0, 0);
+    this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
+    this.questHud.textContent = 'Boss defeated - Tete is down';
+    this.showBossVictoryDialog();
+    this.showPrompt('Tete, The Gooner', 'NO... the ABG and coupon were never yours.');
+    this.boss.destroy();
+    if (this.bossLabel) this.bossLabel.destroy();
+    if (this.bossHealthText) this.bossHealthText.destroy();
+    this.boss = null;
+  }
+
+  damagePlayer(amount) {
+    if (!this.bossFightActive || this.playerHealth <= 0) {
+      return;
+    }
+
+    this.playerHealth = Math.max(0, this.playerHealth - amount);
+    this.player.setTint(0xff7d7d);
+    this.time.delayedCall(140, () => this.player.clearTint());
+    this.questHud.textContent = `Boss Fight - Gdolf ${this.playerHealth}/${this.maxPlayerHealth} | Tete ${this.bossHealth}/${this.maxBossHealth}`;
+
+    if (this.playerHealth <= 0) {
+      this.playerHealth = 0;
+      this.showDeathScreen();
+      this.questHud.textContent = 'You died - Tete wins';
+    }
+  }
+
   handleProjectileHit(projectile, targetNpc) {
     const villager = this.npcs.find((entry) => entry.npc === targetNpc);
     if (!villager) {
@@ -861,6 +1643,73 @@ class FarmScene extends Phaser.Scene {
   }
 
   update() {
+    if (this.gameOver) {
+      return;
+    }
+
+    this.checkBossTrigger();
+
+    if (this.bossFightActive && this.boss) {
+      const bossSpeed = 42;
+      const dx = this.player.x - this.boss.x;
+      const dy = this.player.y - this.boss.y;
+      const distance = Math.hypot(dx, dy) || 1;
+      if (distance > 60) {
+        this.boss.setVelocity((dx / distance) * bossSpeed, (dy / distance) * bossSpeed);
+      } else {
+        this.boss.setVelocity(0, 0);
+      }
+
+      this.player.x = Phaser.Math.Clamp(this.player.x, this.bossRoomBounds.x + 40, this.bossRoomBounds.x + this.bossRoomBounds.width - 40);
+      this.player.y = Phaser.Math.Clamp(this.player.y, this.bossRoomBounds.y + 40, this.bossRoomBounds.y + this.bossRoomBounds.height - 40);
+
+      this.bossAttackCooldown -= this.game.loop.delta;
+      if (this.bossAttackCooldown <= 0) {
+        this.bossAttackCooldown = 1400;
+
+        const shots = 3;
+        const baseAngle = Phaser.Math.Angle.Between(this.boss.x, this.boss.y, this.player.x, this.player.y);
+
+        for (let i = 0; i < shots; i += 1) {
+          const offset = (i - (shots - 1) / 2) * 0.12;
+          const angle = baseAngle + offset;
+          const projectileType = i % 2 === 0 ? 'projectile' : 'beer-projectile';
+          const projectile = this.physics.add.image(this.boss.x, this.boss.y, projectileType);
+          projectile.setDepth(26);
+          projectile.setScale(1.15);
+          projectile.setAlpha(0.96);
+          projectile.setTint(i % 2 === 0 ? 0xffffff : 0xf0b64a);
+          projectile.setCircle(6);
+          projectile.body.setAllowGravity(false);
+          projectile.body.setSize(12, 12);
+          projectile.setVelocity(Math.cos(angle) * 230, Math.sin(angle) * 230);
+          this.bossProjectiles.add(projectile);
+
+          this.time.delayedCall(2200, () => {
+            if (projectile && projectile.active) {
+              projectile.destroy();
+            }
+          });
+        }
+      }
+
+      this.bossProjectiles.children.each((projectile) => {
+        if (!projectile || !projectile.active) {
+          return;
+        }
+
+        const playerDistance = Phaser.Math.Distance.Between(this.player.x, this.player.y, projectile.x, projectile.y);
+        if (playerDistance < 18) {
+          projectile.destroy();
+          this.damagePlayer(4);
+        }
+
+        if (projectile.x < 0 || projectile.x > worldWidth || projectile.y < 0 || projectile.y > worldHeight) {
+          projectile.destroy();
+        }
+      });
+    }
+
     this.updateMinimap();
 
     if (!this.player) {
@@ -874,8 +1723,16 @@ class FarmScene extends Phaser.Scene {
     if (moveX !== 0 || moveY !== 0) {
       const length = Math.hypot(moveX, moveY) || 1;
       this.player.setVelocity((moveX / length) * speed, (moveY / length) * speed);
+      const walkFrameIndex = Math.floor((this.time.now / 140) % this.player.walkFrames.length);
+      const nextTexture = this.player.walkFrames[walkFrameIndex];
+      if (this.player.texture.key !== nextTexture) {
+        this.player.setTexture(nextTexture);
+      }
     } else {
       this.player.setVelocity(0, 0);
+      if (this.player.texture.key !== 'player') {
+        this.player.setTexture('player');
+      }
     }
 
     if (this.playerWeapon) {
@@ -903,9 +1760,60 @@ class FarmScene extends Phaser.Scene {
       this.playerWeapon.setVisible(this.inventory[0]?.type === 'sword' && this.selectedWeapon === 'slot-1');
     }
 
+    if (this.playerCoupon) {
+      const selectedSlotIndex = Number(this.selectedWeapon.replace('slot-', '')) - 1;
+      const selectedItem = this.inventory[selectedSlotIndex] || { type: 'empty' };
+      const shouldShowCoupon = selectedItem.type === 'coupon';
+      this.playerCoupon.setVisible(shouldShowCoupon);
+      this.playerCoupon.x = this.player.x + 14;
+      this.playerCoupon.y = this.player.y + 12;
+      const pointerWorld = this.cameras.main.getWorldPoint(this.input.activePointer.x, this.input.activePointer.y);
+      const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, pointerWorld.x, pointerWorld.y);
+      this.playerCoupon.rotation = angle + Math.PI / 2;
+    }
+
+    if (this.thoughtBubble) {
+      const bubbleX = this.player.x - this.cameras.main.scrollX;
+      const bubbleY = this.player.y - 42 - this.cameras.main.scrollY;
+      const screenX = bubbleX * this.cameras.main.zoom;
+      const screenY = bubbleY * this.cameras.main.zoom;
+      this.thoughtBubble.style.left = `${screenX + 480}px`;
+      this.thoughtBubble.style.top = `${screenY + 220}px`;
+    }
+
+    if (this.abgNpc && !this.abgPicked) {
+      const abgDistance = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.abgNpc.x, this.abgNpc.y);
+      if (abgDistance < 60) {
+        this.nearbyABG = this.abgNpc;
+      } else if (this.nearbyABG) {
+        this.nearbyABG = null;
+      }
+
+      this.abgNpcLabel.x = this.abgNpc.x;
+      this.abgNpcLabel.y = this.abgNpc.y - 20;
+      this.abgNpcMarker.x = this.abgNpc.x;
+      this.abgNpcMarker.y = this.abgNpc.y - 30;
+    }
+
     if (this.nameLabel) {
       this.nameLabel.x = this.player.x;
       this.nameLabel.y = this.player.y - 22;
+    }
+
+    if (this.couponKeeper) {
+      const keeperDistance = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.couponKeeper.x, this.couponKeeper.y);
+      if (keeperDistance < 65) {
+        this.nearbyCouponKeeper = this.couponKeeper;
+      } else if (this.nearbyCouponKeeper) {
+        this.nearbyCouponKeeper = null;
+      }
+    }
+
+    if (this.bossTesterNpc) {
+      const testerDistance = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.bossTesterNpc.x, this.bossTesterNpc.y);
+      if (testerDistance < 60) {
+        this.game.canvas.style.cursor = 'pointer';
+      }
     }
 
     if (this.npcs) {
@@ -928,6 +1836,12 @@ class FarmScene extends Phaser.Scene {
         const vx = (moveX / length) * villager.speed;
         const vy = (moveY / length) * villager.speed;
         npc.setVelocity(vx, vy);
+
+        const walkFrameIndex = Math.floor((this.time.now / 150) % npc.walkFrames.length);
+        const nextTexture = npc.walkFrames[walkFrameIndex];
+        if (npc.texture.key !== nextTexture) {
+          npc.setTexture(nextTexture);
+        }
 
         if (npc.x <= 40 || npc.x >= worldWidth - 40) {
           villager.direction.x *= -1;
@@ -964,6 +1878,17 @@ class FarmScene extends Phaser.Scene {
       this.promptBox.y = this.player.y - 110;
     }
 
+    this.goldPickups.forEach((pickup) => {
+      if (pickup.collected) {
+        return;
+      }
+
+      const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, pickup.sprite.x, pickup.sprite.y);
+      if (distance < 28) {
+        this.collectGoldPickup(pickup);
+      }
+    });
+
     this.nearbyPickup = null;
     this.pickupItems.forEach((pickup) => {
       if (pickup.picked) {
@@ -979,20 +1904,84 @@ class FarmScene extends Phaser.Scene {
     });
   }
 
+  createDialogueBox() {
+    this.dialogBox = document.createElement('div');
+    this.dialogBox.className = 'npc-dialog hidden';
+    this.dialogBox.innerHTML = `
+      <div class="npc-dialog-avatar">
+        <img src="/assets/CuponKeeper.png" alt="NPC portrait" />
+      </div>
+      <div class="npc-dialog-content">
+        <div class="npc-dialog-name">Cupon Keeper</div>
+        <div class="npc-dialog-text">Am nevoie de 100 de lovele pentru un cupon.</div>
+      </div>
+      <button type="button" class="npc-dialog-ok">OK</button>
+    `;
+
+    this.dialogName = this.dialogBox.querySelector('.npc-dialog-name');
+    this.dialogText = this.dialogBox.querySelector('.npc-dialog-text');
+    this.dialogOkButton = this.dialogBox.querySelector('.npc-dialog-ok');
+    this.dialogOkButton.addEventListener('click', () => {
+      this.hidePrompt();
+      if (this.hasCoupon && !this.missionKillVillagers) {
+        this.missionKillVillagers = true;
+        this.questHud.textContent = 'Next Mission - Kill all villagers';
+      }
+    });
+    document.body.appendChild(this.dialogBox);
+  }
+
   showPrompt(name, message, x, y) {
-    const boxX = x - 120;
-    const boxY = y - 120;
-    this.promptText.setText(`${name}\n${message}`);
-    this.promptText.setVisible(true);
-    this.promptImage.setVisible(true);
-    this.promptBox.setPosition(boxX, boxY);
-    this.promptBox.setVisible(true);
+    if (!this.dialogBox) {
+      return;
+    }
+
+    if (this.dialogHideTimeout) {
+      clearTimeout(this.dialogHideTimeout);
+    }
+
+    this.dialogName.textContent = name;
+    this.dialogText.textContent = message;
+    this.dialogBox.classList.remove('hidden');
+    this.dialogHideTimeout = setTimeout(() => {
+      this.hidePrompt();
+    }, 5000);
   }
 
   hidePrompt() {
-    this.promptText.setVisible(false);
-    this.promptImage.setVisible(false);
-    this.promptBox.setVisible(false);
+    if (!this.dialogBox) {
+      return;
+    }
+
+    if (this.dialogHideTimeout) {
+      clearTimeout(this.dialogHideTimeout);
+      this.dialogHideTimeout = null;
+    }
+    this.dialogBox.classList.add('hidden');
+  }
+
+  showThoughtBubble(message) {
+    if (!this.thoughtBubble) {
+      this.thoughtBubble = document.createElement('div');
+      this.thoughtBubble.className = 'thought-bubble hidden';
+      document.body.appendChild(this.thoughtBubble);
+    }
+
+    this.thoughtBubble.textContent = message;
+    this.thoughtBubble.classList.remove('hidden');
+
+    if (this.thoughtBubbleTimeout) {
+      clearTimeout(this.thoughtBubbleTimeout);
+    }
+    this.thoughtBubbleTimeout = setTimeout(() => {
+      this.hideThoughtBubble();
+    }, 5000);
+  }
+
+  hideThoughtBubble() {
+    if (this.thoughtBubble) {
+      this.thoughtBubble.classList.add('hidden');
+    }
   }
 }
 
