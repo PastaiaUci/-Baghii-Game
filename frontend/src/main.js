@@ -5,6 +5,7 @@ import { createRushSkill, activateRush, updateRush } from './rush.js';
 import { createArena, createBoss, updateBoss, clearBossAttacks, updatePlayerHealth, updateBossHealth } from './boss.js';
 import { dropBossLoot, consumeNearbyBossLoot, clickBossLoot, updateBossLoot } from './boss-loot.js';
 import { createRewardSystem, activateDeathBreath, activateFlashlight, updateRewards, slowMultiplier } from './rewards.js';
+import { createSkillbar, createSwordAura, activateSwordAura, updateSwordAura, swordAuraBonus } from './skills.js';
 
 const worldWidth = 1600;
 const worldHeight = 1200;
@@ -90,7 +91,9 @@ class FarmScene extends Phaser.Scene {
     this.player.body.setSize(16, 10);
     this.player.body.setOffset(8, 28);
     this.player.walkFrames = this.playerWalkFrames || ['player'];
+    createSkillbar(this);
     createRushSkill(this);
+    createSwordAura(this);
     createRewardSystem(this);
 
     this.playerWeapon = this.add.sprite(this.player.x, this.player.y, 'sword');
@@ -179,6 +182,7 @@ class FarmScene extends Phaser.Scene {
       const key = event.key ? event.key.toLowerCase() : '';
       if (key === 'q' && !event.repeat) activateRush(this);
       if (key === 'r' && !event.repeat) activateDeathBreath(this);
+      if (key === 'f' && !event.repeat) activateSwordAura(this);
       if (key === '1') this.selectWeapon('slot-1');
       if (key === '2') this.selectWeapon('slot-2');
       if (key === '3') this.selectWeapon('slot-3');
@@ -1009,7 +1013,7 @@ class FarmScene extends Phaser.Scene {
       const dot = (toBossX * facingX) + (toBossY * facingY);
 
       if (distance <= 80 && dot > -0.2) {
-        this.damageBoss(2);
+        this.damageBoss(2 + swordAuraBonus(this, 'boss'));
         hit = true;
       }
     }
@@ -1030,7 +1034,7 @@ class FarmScene extends Phaser.Scene {
       const dot = (toVillagerX * facingX) + (toVillagerY * facingY);
 
       if (distance <= 58 && dot > -0.2) {
-        this.damageVillager(villager, 1);
+        this.damageVillager(villager, 1 + swordAuraBonus(this, 'villager'));
         hit = true;
       }
     });
@@ -1362,6 +1366,7 @@ class FarmScene extends Phaser.Scene {
     if (this.gameOver) {
       updateRush(this);
       updateRewards(this);
+      updateSwordAura(this);
       return;
     }
 
@@ -1439,6 +1444,7 @@ class FarmScene extends Phaser.Scene {
 
       this.playerWeapon.setVisible(this.inventory[0]?.type === 'sword' && this.selectedWeapon === 'slot-1');
     }
+    updateSwordAura(this);
 
     if (this.playerCoupon) {
       const selectedSlotIndex = Number(this.selectedWeapon.replace('slot-', '')) - 1;

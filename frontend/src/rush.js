@@ -1,3 +1,5 @@
+import { mountSkillButton } from './skills.js';
+
 export class RushSkill {
   constructor() {
     this.activeUntil = 0;
@@ -33,7 +35,7 @@ export function createRushSkill(scene) {
   // A skill click must not also swing the equipped weapon.
   button.addEventListener('pointerdown', (event) => event.stopPropagation());
   button.addEventListener('click', () => activateRush(scene));
-  document.body.appendChild(button);
+  mountSkillButton(scene, button);
   scene.rushButton = button;
   scene.rushStatus = button.querySelector('.rush-status');
   scene.events.once('shutdown', () => button.remove());

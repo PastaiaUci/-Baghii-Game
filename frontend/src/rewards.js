@@ -1,3 +1,5 @@
+import { mountSkillButton } from './skills.js';
+
 export class AreaSkill {
   constructor() { this.until = 0; this.readyAt = 0; this.nextTick = 0; }
   activate(now) {
@@ -59,7 +61,7 @@ export function grantBossReward(scene, type) {
     button.title = 'R · Damage în jurul tău timp de 3 secunde. Cooldown: 12 secunde.';
     button.addEventListener('pointerdown', (event) => event.stopPropagation());
     button.addEventListener('click', () => activateDeathBreath(scene));
-    document.body.appendChild(button);
+    mountSkillButton(scene, button);
     scene.deathBreathButton = button;
     scene.deathBreathStatus = button.querySelector('.rush-status');
     scene.setQuest('Death Breath deblocat', 'Apasă R: damage în jurul tău timp de 3 secunde.');
@@ -76,7 +78,7 @@ export function grantBossReward(scene, type) {
     button.title = 'Slow 50% pentru 4 secunde în jurul tău. Cooldown: 10 secunde.';
     button.addEventListener('pointerdown', (event) => event.stopPropagation());
     button.addEventListener('click', () => activateFlashlight(scene));
-    document.body.appendChild(button);
+    mountSkillButton(scene, button);
     scene.flashlightButton = button;
     scene.flashlightStatus = button.querySelector('.rush-status');
     scene.setQuest('Flashlight primit', `Slot ${slot + 1} · Click: încetinește inamicii din jur cu 50% pentru 4 secunde.`);
