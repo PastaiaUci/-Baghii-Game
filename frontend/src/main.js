@@ -1,5 +1,10 @@
 import Phaser from 'phaser';
 import './style.css';
+import { createVillageGround, createVillageProps, createVillageTextures } from './village.js';
+import { createRushSkill, activateRush, updateRush } from './rush.js';
+import { createArena, createBoss, updateBoss, clearBossAttacks, updatePlayerHealth, updateBossHealth } from './boss.js';
+import { dropBossLoot, consumeNearbyBossLoot, clickBossLoot, updateBossLoot } from './boss-loot.js';
+import { createRewardSystem, activateDeathBreath, activateFlashlight, updateRewards, slowMultiplier } from './rewards.js';
 
 const worldWidth = 1600;
 const worldHeight = 1200;
@@ -25,16 +30,14 @@ class FarmScene extends Phaser.Scene {
     this.thoughtBubbleTimeout = null;
     this.playerHealth = 30;
     this.maxPlayerHealth = 30;
-    this.bossHealth = 50;
-    this.maxBossHealth = 50;
+    this.bossHealth = 70;
+    this.maxBossHealth = 70;
     this.bossFightActive = false;
     this.bossDefeated = false;
     this.bossRoomActive = false;
     this.bossTransitioning = false;
-    this.bossAttackCooldown = 0;
-    this.bossRoomBounds = { x: 560, y: 400, width: 460, height: 260 };
+    this.bossRoomBounds = { x: 480, y: 340, width: 640, height: 400 };
     this.gameOver = false;
-    this.victoryDialog = null;
     this.deathScreen = null;
     this.isAttacking = false;
     this.attackTimer = 0;
@@ -42,6 +45,7 @@ class FarmScene extends Phaser.Scene {
   }
 
   preload() {
+    this.load.image('tete-portrait', '/assets/Tete.png');
   }
 
   create() {
@@ -68,13 +72,11 @@ class FarmScene extends Phaser.Scene {
 
     this.createPlayerTexture();
     this.createSwordTexture();
-    this.createTreeTexture();
-    this.createHouseTexture();
+    createVillageTextures(this);
     this.createProjectileTexture();
     this.createVillageProps();
     this.createVillagers();
     this.createCouponKeeper();
-    this.createBossTesterNpc();
     this.createSwordPickup();
     this.createCoinTexture();
     this.spawnRandomGoldCoins();
@@ -85,9 +87,11 @@ class FarmScene extends Phaser.Scene {
     this.player = this.physics.add.sprite(spawnX, spawnY, 'player');
     this.player.setCollideWorldBounds(true);
     this.player.setDepth(20);
-    this.player.body.setSize(16, 18);
-    this.player.body.setOffset(2, 2);
+    this.player.body.setSize(16, 10);
+    this.player.body.setOffset(8, 28);
     this.player.walkFrames = this.playerWalkFrames || ['player'];
+    createRushSkill(this);
+    createRewardSystem(this);
 
     this.playerWeapon = this.add.sprite(this.player.x, this.player.y, 'sword');
     this.playerWeapon.setDepth(24);
@@ -114,6 +118,11 @@ class FarmScene extends Phaser.Scene {
     });
     this.nameLabel.setOrigin(0.5, 0.5);
     this.nameLabel.setDepth(30);
+    this.playerHeadHealth = this.add.graphics().setDepth(31);
+    this.playerHeadHealthText = this.add.text(0, 0, '', {
+      fontFamily: 'Arial', fontSize: '8px', color: '#eaffdf', stroke: '#17211c', strokeThickness: 2,
+    }).setOrigin(0.5).setDepth(32);
+    this.updatePlayerHeadHealth();
 
     this.createDialogueBox();
 
@@ -123,6 +132,12 @@ class FarmScene extends Phaser.Scene {
       }
 
       const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+      if (clickBossLoot(this, worldPoint)) return;
+      const selectedItem = this.inventory[Number(this.selectedWeapon.replace('slot-', '')) - 1];
+      if (selectedItem?.type === 'flashlight') {
+        activateFlashlight(this);
+        return;
+      }
 
       if (this.couponKeeper) {
         const keeperDistance = Phaser.Math.Distance.Between(worldPoint.x, worldPoint.y, this.couponKeeper.x, this.couponKeeper.y);
@@ -162,12 +177,15 @@ class FarmScene extends Phaser.Scene {
 
     this.input.keyboard.on('keydown', (event) => {
       const key = event.key ? event.key.toLowerCase() : '';
+      if (key === 'q' && !event.repeat) activateRush(this);
+      if (key === 'r' && !event.repeat) activateDeathBreath(this);
       if (key === '1') this.selectWeapon('slot-1');
       if (key === '2') this.selectWeapon('slot-2');
       if (key === '3') this.selectWeapon('slot-3');
       if (key === '4') this.selectWeapon('slot-4');
       if (key === '5') this.selectWeapon('slot-5');
       if (key === 'e') {
+        if (!event.repeat && consumeNearbyBossLoot(this)) return;
         if (this.nearbyABG) {
           this.pickUpABG();
           return;
@@ -181,38 +199,9 @@ class FarmScene extends Phaser.Scene {
       if (key === 'i') this.toggleInventory();
     });
 
-    const roadBlocks = [
-      { x: 420, y: 260, width: 440, height: 28 },
-      { x: 610, y: 260, width: 28, height: 220 },
-      { x: 610, y: 600, width: 28, height: 230 },
-      { x: 820, y: 710, width: 520, height: 28 },
-      { x: 1040, y: 360, width: 28, height: 250 },
-    ];
+    this.physics.add.collider(this.player, this.obstacles, null, () => !this.bossRoomActive);
+    this.physics.add.collider(this.villagerGroup, this.obstacles, null, () => !this.bossRoomActive);
 
-    roadBlocks.forEach(({ x, y, width, height }) => {
-      const road = this.add.rectangle(x, y, width, height, 0x8d8f97, 1);
-      road.setOrigin(0.5, 0.5);
-      road.setDepth(1);
-      this.obstacles.add(road);
-    });
-
-    const gate = this.obstacles.create(1160, 360, 'house');
-    gate.setScale(0.75);
-    gate.body.setSize(120, 110);
-    gate.body.setOffset(20, 28);
-
-    const wallLeft = this.obstacles.create(220, 900, 'tree');
-    wallLeft.setScale(0.8);
-    wallLeft.body.setSize(80, 80);
-    wallLeft.body.setOffset(10, 10);
-
-    const wallRight = this.obstacles.create(1330, 940, 'tree');
-    wallRight.setScale(0.8);
-    wallRight.body.setSize(80, 80);
-    wallRight.body.setOffset(10, 10);
-
-    this.physics.add.collider(this.player, this.obstacles);
-    this.physics.add.collider(this.villagerGroup, this.obstacles);
     this.physics.add.overlap(this.projectiles, this.villagerGroup, this.handleProjectileHit, null, this);
 
     this.cursors = this.input.keyboard.addKeys({
@@ -228,95 +217,11 @@ class FarmScene extends Phaser.Scene {
   }
 
   createWorldGround() {
-    const ground = this.add.graphics();
-    ground.fillStyle(0x7ec85a, 1);
-    ground.fillRect(0, 0, worldWidth, worldHeight);
-
-    for (let x = 0; x < worldWidth; x += 32) {
-      for (let y = 0; y < worldHeight; y += 32) {
-        const noise = ((x * 13 + y * 17) % 11) * 2;
-        ground.fillStyle(0x6bbf4c + noise, 0.18);
-        ground.fillRect(x, y, 16, 16);
-      }
-    }
-
-    ground.fillStyle(0x88a0a8, 1);
-    ground.fillRoundedRect(330, 200, 520, 36, 8);
-    ground.fillRoundedRect(610, 260, 36, 420, 8);
-    ground.fillRoundedRect(610, 610, 36, 260, 8);
-    ground.fillRoundedRect(820, 680, 500, 36, 8);
-    ground.fillRoundedRect(1030, 360, 36, 280, 8);
-
-    ground.fillStyle(0x6d8c4c, 1);
-    ground.fillRect(1180, 310, 140, 100);
-    ground.fillStyle(0x95a66a, 1);
-    ground.fillRect(1200, 330, 100, 64);
-    ground.fillStyle(0x4e3d2e, 1);
-    ground.fillRect(1232, 305, 36, 30);
-
-    ground.fillStyle(0x74b65a, 1);
-    ground.fillRect(130, 760, 200, 180);
-    ground.fillRect(150, 980, 160, 120);
-    ground.fillRect(1180, 840, 240, 160);
-
-    ground.fillStyle(0x7a7f85, 1);
-    ground.fillRoundedRect(520, 150, 120, 18, 8);
-    ground.fillRoundedRect(470, 1040, 210, 20, 8);
-    ground.fillRoundedRect(1060, 980, 220, 18, 8);
-
-    ground.generateTexture('ground', worldWidth, worldHeight);
-    ground.destroy();
-    this.worldGround = this.add.image(0, 0, 'ground').setOrigin(0, 0);
-    this.worldGround.setDepth(0);
+    createVillageGround(this, worldWidth, worldHeight);
   }
 
   createVillageProps() {
-    const newHouses = [
-      { x: 1180, y: 520, scale: 0.9 },
-      { x: 820, y: 540, scale: 1.0 },
-      { x: 880, y: 850, scale: 0.95 },
-      { x: 260, y: 900, scale: 1.1 },
-      { x: 1340, y: 760, scale: 0.9 },
-    ];
-
-    newHouses.forEach(({ x, y, scale }) => {
-      const house = this.obstacles.create(x, y, 'house');
-      house.setScale(scale);
-      house.body.setSize(110, 90);
-      house.body.setOffset(18, 18);
-      this.worldObjects.push(house);
-    });
-
-    const fencePositions = [
-      { x: 150, y: 700, w: 180, h: 10 },
-      { x: 1100, y: 1020, w: 180, h: 10 },
-      { x: 280, y: 1060, w: 120, h: 10 },
-      { x: 1100, y: 440, w: 150, h: 10 },
-      { x: 760, y: 240, w: 180, h: 10 },
-    ];
-
-    fencePositions.forEach(({ x, y, w, h }) => {
-      const fence = this.add.rectangle(x, y, w, h, 0x6b4b2e, 1);
-      fence.setDepth(2);
-      this.obstacles.add(fence);
-      this.worldObjects.push(fence);
-    });
-
-    const gate = this.obstacles.create(1170, 368, 'house');
-    gate.setScale(0.55);
-    gate.body.setSize(130, 90);
-    gate.body.setOffset(12, 12);
-    this.worldObjects.push(gate);
-
-    const well = this.add.circle(1240, 520, 22, 0x6c8088, 1);
-    well.setDepth(4);
-    this.worldObjects.push(well);
-    const wellTop = this.add.circle(1240, 502, 16, 0x9aa7a8, 1);
-    wellTop.setDepth(5);
-    this.worldObjects.push(wellTop);
-    const marker = this.add.rectangle(1238, 548, 48, 10, 0x7d7e72, 1);
-    marker.setDepth(3);
-    this.worldObjects.push(marker);
+    createVillageProps(this);
   }
 
   createVillagers() {
@@ -337,8 +242,8 @@ class FarmScene extends Phaser.Scene {
       npc.setDepth(15);
       npc.setCollideWorldBounds(true);
       npc.setImmovable(true);
-      npc.body.setSize(18, 18);
-      npc.body.setOffset(7, 10);
+      npc.body.setSize(16, 10);
+      npc.body.setOffset(8, 28);
       this.villagerGroup.add(npc);
 
       const label = this.add.text(x, y - 22, 'Villiger', {
@@ -401,8 +306,8 @@ class FarmScene extends Phaser.Scene {
     this.couponKeeper.setVisible(true);
     this.couponKeeper.setCollideWorldBounds(true);
     this.couponKeeper.setImmovable(true);
-    this.couponKeeper.body.setSize(18, 18);
-    this.couponKeeper.body.setOffset(7, 10);
+    this.couponKeeper.body.setSize(16, 10);
+    this.couponKeeper.body.setOffset(8, 28);
 
     this.couponKeeperLabel = this.add.text(140, 198, 'Cupon Keeper', {
       fontFamily: 'Arial',
@@ -470,73 +375,6 @@ class FarmScene extends Phaser.Scene {
     this.updateHotbarState();
 
     this.showPrompt('Cupon Keeper', 'Ai primit un cupon!', this.nearbyCouponKeeper.x, this.nearbyCouponKeeper.y);
-    this.showThoughtBubble('Am un cupon acum, am nevoie si de o ABG... sigur un muist de-asta e casatorit cu una, ii execut pe toti');
-  }
-
-  createBossTesterNpc() {
-    const key = 'boss-tester';
-    this.createNpcTexture(key, 0x362915, 0x7a3d82, 0xeac99b, 0xf4d35d);
-
-    this.bossTesterNpc = this.physics.add.sprite(260, 220, key);
-    this.bossTesterNpc.setDepth(15);
-    this.bossTesterNpc.setVisible(true);
-    this.bossTesterNpc.setCollideWorldBounds(true);
-    this.bossTesterNpc.setImmovable(true);
-    this.bossTesterNpc.body.setSize(18, 18);
-    this.bossTesterNpc.body.setOffset(7, 10);
-
-    this.bossTesterLabel = this.add.text(260, 198, 'Boss Test', {
-      fontFamily: 'Arial',
-      fontSize: '12px',
-      color: '#f5f5f5',
-      stroke: '#1f1f1f',
-      strokeThickness: 3,
-      align: 'center',
-      backgroundColor: 'rgba(0, 0, 0, 0.16)',
-      padding: { x: 4, y: 2 },
-    });
-    this.bossTesterLabel.setOrigin(0.5, 0.5);
-    this.bossTesterLabel.setDepth(30);
-
-    this.bossTesterMarker = this.add.text(260, 170, '!', {
-      fontFamily: 'Arial',
-      fontSize: '10px',
-      color: '#ffd166',
-      stroke: '#1f1f1f',
-      strokeThickness: 3,
-    });
-    this.bossTesterMarker.setOrigin(0.5, 0.5);
-    this.bossTesterMarker.setDepth(30);
-    this.bossTesterMarker.setVisible(true);
-
-    this.bossTesterNpc.setInteractive({ useHandCursor: true });
-    this.bossTesterNpc.on('pointerover', () => {
-      this.game.canvas.style.cursor = 'pointer';
-    });
-    this.bossTesterNpc.on('pointerout', () => {
-      this.game.canvas.style.cursor = 'default';
-    });
-
-    this.input.on('gameobjectdown', (pointer, gameObject) => {
-      if (gameObject === this.bossTesterNpc) {
-        this.startBossFight();
-      }
-    });
-  }
-
-  startBossFight() {
-    if (!this.player || this.bossFightActive || this.bossRoomActive || this.bossTransitioning) {
-      return;
-    }
-
-    const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.bossTesterNpc?.x ?? this.player.x, this.bossTesterNpc?.y ?? this.player.y);
-    if (this.bossTesterNpc && distance > 90) {
-      return;
-    }
-
-    this.bossTransitioning = true;
-    this.showPrompt('Boss Test', 'Teleporting to boss fight...');
-    this.enterBossRoom();
   }
 
   createIntroScreen() {
@@ -545,7 +383,7 @@ class FarmScene extends Phaser.Scene {
     overlay.innerHTML = `
       <div class="intro-panel">
         <div class="intro-brand">
-          <img src="/assets/a034172d413676cfdf5469245999fb2fdc683105_full.jpg" alt="Baghii logo" class="intro-logo" />
+          <img src="/assets/Baghii.jpg" alt="Baghii logo" class="intro-logo" />
         </div>
         <p class="intro-kicker">The story begins</p>
         <h1>Gdolf, The Betrayer</h1>
@@ -589,9 +427,25 @@ class FarmScene extends Phaser.Scene {
 
   setupQuestHud() {
     this.questHud = document.createElement('div');
-    this.questHud.textContent = 'Level 1 - Find Tete, The Gooner';
     this.questHud.className = 'quest-hud';
+    this.questHud.innerHTML = '<div class="quest-kicker">OBIECTIV CURENT</div><div class="quest-title"></div><div class="quest-detail"></div><div class="quest-progress"></div>';
+    this.questTitle = this.questHud.querySelector('.quest-title');
+    this.questDetail = this.questHud.querySelector('.quest-detail');
+    this.questProgress = this.questHud.querySelector('.quest-progress');
     document.body.appendChild(this.questHud);
+    this.setQuest('Găsește-l pe Tete', 'Adună 100 de gold și cumpără un cupon de la Cupon Keeper.');
+  }
+
+  setQuest(title, detail = '', progress = '') {
+    this.questTitle.textContent = title;
+    this.questDetail.textContent = detail;
+    this.questProgress.textContent = progress;
+    this.questProgress.hidden = !progress;
+  }
+
+  showVillagerObjective() {
+    const defeated = this.npcs.filter(({ alive }) => !alive).length;
+    this.setQuest('Învinge sătenii', 'Caută-i pe hartă și folosește sabia pentru a-i învinge.', `${defeated} / ${this.npcs.length} săteni învinși`);
   }
 
   createGoldHud() {
@@ -620,17 +474,16 @@ class FarmScene extends Phaser.Scene {
     }
 
     if (this.bossFightActive) {
-      this.questHud.textContent = `Boss Fight - Gdolf ${this.playerHealth}/${this.maxPlayerHealth} | Tete ${this.bossHealth}/${this.maxBossHealth}`;
+      this.setQuest('Învinge-l pe Tete', 'Evită berea și bălțile albe. Q: Iureș.', `Gdolf ${this.playerHealth}/${this.maxPlayerHealth} · Tete ${this.bossHealth}/${this.maxBossHealth}`);
       return;
     }
 
     if (this.bossDefeated) {
-      this.questHud.textContent = 'Boss defeated - Tete is down';
       return;
     }
 
     if (this.missionKillVillagers) {
-      this.questHud.textContent = 'Next Mission - Kill all villagers';
+      this.showVillagerObjective();
     }
   }
 
@@ -703,9 +556,9 @@ class FarmScene extends Phaser.Scene {
         itemNode.innerHTML = `
           <span class="coupon-ticket"></span>
         `;
-      } else if (item.type === 'abg') {
-        itemNode.className = 'hotbar-item hotbar-abg';
-        itemNode.textContent = 'ABG';
+      } else if (item.type === 'flashlight') {
+        itemNode.className = 'hotbar-item';
+        itemNode.innerHTML = '<span class="flashlight-icon"></span>';
       } else {
         itemNode.className = 'hotbar-item hotbar-empty';
         itemNode.innerHTML = '';
@@ -757,11 +610,7 @@ class FarmScene extends Phaser.Scene {
                 <span class="coupon-ticket"></span>
               </div>
             `
-            : item.type === 'abg'
-              ? `
-                <div class="inventory-abg">ABG</div>
-              `
-              : '';
+            : item.type === 'flashlight' ? '<span class="flashlight-icon"></span>' : '';
 
         return `
           <div class="inventory-slot ${item.type === 'empty' ? 'empty' : ''}" title="${item.label}">
@@ -962,6 +811,22 @@ class FarmScene extends Phaser.Scene {
     }
 
     positions.forEach((position, index) => {
+      const blocked = (x, y) => this.obstacles.getChildren().some(({ body }) =>
+        body && x > body.left - 18 && x < body.right + 18 && y > body.top - 18 && y < body.bottom + 28);
+      if (blocked(position.x, position.y)) {
+        // Search locally, preserving the distribution and value of every pickup.
+        search: for (let radius = 32; radius <= 320; radius += 32) {
+          for (let step = 0; step < 16; step += 1) {
+            const angle = step * Math.PI / 8;
+            const x = Phaser.Math.Clamp(position.x + Math.cos(angle) * radius, 40, worldWidth - 40);
+            const y = Phaser.Math.Clamp(position.y + Math.sin(angle) * radius, 40, worldHeight - 40);
+            if (!blocked(x, y)) {
+              position = { x, y };
+              break search;
+            }
+          }
+        }
+      }
       const coin = this.add.sprite(position.x, position.y, 'gold-coin');
       coin.setDepth(18);
       coin.setScale(1.1);
@@ -1040,17 +905,12 @@ class FarmScene extends Phaser.Scene {
 
     this.abgPicked = true;
     this.nearbyABG = null;
-    const emptySlotIndex = this.inventory.findIndex((item) => item.type === 'empty');
-    const targetIndex = emptySlotIndex !== -1 ? emptySlotIndex : 0;
-    this.inventory[targetIndex] = { type: 'abg', label: 'ABG', key: String(targetIndex + 1) };
-    this.updateInventoryList();
-    this.updateHotbarState();
     this.abgNpc.destroy();
     if (this.abgNpcLabel) {
       this.abgNpcLabel.destroy();
     }
+    this.abgNpcMarker?.destroy();
     this.hidePrompt();
-    this.showThoughtBubble('ABG luata. E time to move on.');
 
     if (this.hasRequiredBossItems() && !this.bossFightActive && !this.bossTransitioning) {
       this.bossTransitioning = true;
@@ -1127,40 +987,6 @@ class FarmScene extends Phaser.Scene {
     beerGraphics.fillRect(6, 1, 4, 3);
     beerGraphics.generateTexture('beer-projectile', 16, 16);
     beerGraphics.destroy();
-  }
-
-  createTreeTexture() {
-    const graphics = this.make.graphics();
-    graphics.fillStyle(0x2f6a38, 1);
-    graphics.fillEllipse(24, 14, 28, 18);
-    graphics.fillStyle(0x3f8c46, 1);
-    graphics.fillEllipse(16, 18, 26, 20);
-    graphics.fillStyle(0x4a2f1d, 1);
-    graphics.fillRect(21, 22, 8, 18);
-    graphics.generateTexture('tree', 48, 48);
-    graphics.destroy();
-  }
-
-  createHouseTexture() {
-    const graphics = this.make.graphics();
-    graphics.fillStyle(0xd9b38c, 1);
-    graphics.fillRect(8, 16, 76, 52);
-    graphics.fillStyle(0x8c5d3c, 1);
-    graphics.fillTriangle(4, 18, 92, 18, 48, 0);
-    graphics.fillStyle(0x8f6a51, 1);
-    graphics.fillRect(30, 38, 18, 30);
-    graphics.fillStyle(0x5e3c2d, 1);
-    graphics.fillRect(60, 42, 12, 26);
-    graphics.generateTexture('house', 100, 75);
-    graphics.destroy();
-
-    const gardenGraphics = this.make.graphics();
-    gardenGraphics.fillStyle(0x66d987, 1);
-    gardenGraphics.fillRect(0, 0, 60, 40);
-    gardenGraphics.fillStyle(0x8d623b, 1);
-    gardenGraphics.fillRect(20, 20, 14, 24);
-    gardenGraphics.generateTexture('garden', 60, 40);
-    gardenGraphics.destroy();
   }
 
   performAttack(targetX, targetY) {
@@ -1267,6 +1093,7 @@ class FarmScene extends Phaser.Scene {
     villager.npc.setVisible(false);
     villager.label.setVisible(false);
     villager.marker.setVisible(false);
+    if (this.missionKillVillagers && !this.bossRoomActive) this.showVillagerObjective();
 
     const allVillagersDead = this.npcs.every((entry) => !entry.alive);
     if (this.missionKillVillagers && allVillagersDead) {
@@ -1289,6 +1116,7 @@ class FarmScene extends Phaser.Scene {
     });
     cross.setOrigin(0.5, 0.5);
     cross.setDepth(50);
+    this.worldObjects.push(grave, graveTop, cross);
 
     const ghostText = this.add.text(villager.npc.x, villager.npc.y - 30, 'Nu mai e bah vremea de trait!', {
       fontFamily: 'Arial',
@@ -1313,6 +1141,7 @@ class FarmScene extends Phaser.Scene {
     });
     ghost.setOrigin(0.5, 0.5);
     ghost.setDepth(50);
+    this.worldObjects.push(ghostText, ghost);
 
     this.tweens.add({
       targets: ghost,
@@ -1340,8 +1169,8 @@ class FarmScene extends Phaser.Scene {
     this.abgNpc.setDepth(15);
     this.abgNpc.setCollideWorldBounds(true);
     this.abgNpc.setImmovable(true);
-    this.abgNpc.body.setSize(18, 18);
-    this.abgNpc.body.setOffset(7, 10);
+    this.abgNpc.body.setSize(16, 10);
+    this.abgNpc.body.setOffset(8, 28);
 
     this.abgNpcLabel = this.add.text(1280, 900, 'ABG', {
       fontFamily: 'Arial',
@@ -1367,44 +1196,13 @@ class FarmScene extends Phaser.Scene {
     this.abgNpcMarker.setDepth(30);
     this.abgNpcMarker.setVisible(true);
 
-    this.showThoughtBubble('ABG e aici. E timpul sa o iau.');
     if (this.questHud) {
-      this.questHud.textContent = 'Final objective - Take ABG';
+      this.setQuest('Găsește ABG', 'Mergi în sud-estul satului și apasă E lângă ABG.', 'Cupon ✓ · Săteni ✓ · ABG de găsit');
     }
   }
 
   createBossArena() {
-    this.bossRoomLayer = this.add.container();
-
-    const roomBg = this.add.rectangle(830, 610, 500, 300, 0x290d18, 1);
-    roomBg.setDepth(0);
-    this.bossRoomLayer.add(roomBg);
-
-    const floor = this.add.rectangle(830, 610, 420, 190, 0x4b2e39, 1);
-    floor.setDepth(1);
-    this.bossRoomLayer.add(floor);
-
-    const wallTop = this.add.rectangle(830, 500, 420, 22, 0x582534, 1);
-    wallTop.setDepth(2);
-    this.bossRoomLayer.add(wallTop);
-
-    const wallBottom = this.add.rectangle(830, 720, 420, 22, 0x582534, 1);
-    wallBottom.setDepth(2);
-    this.bossRoomLayer.add(wallBottom);
-
-    const wallLeft = this.add.rectangle(620, 610, 22, 220, 0x582534, 1);
-    wallLeft.setDepth(2);
-    this.bossRoomLayer.add(wallLeft);
-
-    const wallRight = this.add.rectangle(1040, 610, 22, 220, 0x582534, 1);
-    wallRight.setDepth(2);
-    this.bossRoomLayer.add(wallRight);
-
-    const altar = this.add.rectangle(830, 675, 120, 48, 0x7f1d2d, 1);
-    altar.setDepth(3);
-    this.bossRoomLayer.add(altar);
-
-    this.bossRoomLayer.setVisible(false);
+    createArena(this);
   }
 
   showFullscreenDialog(title, message, type = 'default') {
@@ -1434,22 +1232,14 @@ class FarmScene extends Phaser.Scene {
 
     this.deathScreen = this.showFullscreenDialog('MUIE', 'Tete, The Gooner a te-a rupt in piept. Ai murit.', 'death');
     this.gameOver = true;
+    clearBossAttacks(this);
     this.player.setVelocity(0, 0);
     this.bossFightActive = false;
   }
 
-  showBossVictoryDialog() {
-    if (this.victoryDialog) {
-      return;
-    }
-
-    this.victoryDialog = this.showFullscreenDialog('Tete, The Gooner', 'Asta e tot. Ai luat ce era al meu. Acum pleci cu ABG-ul si cuponul, dar nu uita: am sa te caut si data viitoare.', 'victory');
-  }
-
   hasRequiredBossItems() {
     const hasCoupon = this.hasCoupon || this.inventory.some((item) => item.type === 'coupon');
-    const hasABG = this.abgPicked || this.inventory.some((item) => item.type === 'abg');
-    return hasCoupon && hasABG;
+    return hasCoupon && this.abgPicked;
   }
 
   checkBossTrigger() {
@@ -1490,73 +1280,21 @@ class FarmScene extends Phaser.Scene {
       this.couponKeeperMarker.setVisible(false);
     }
     this.bossRoomLayer.setVisible(true);
-    this.physics.world.setBounds(this.bossRoomBounds.x, this.bossRoomBounds.y, this.bossRoomBounds.width, this.bossRoomBounds.height);
+    this.physics.world.setBounds(this.bossRoomBounds.x + 20, this.bossRoomBounds.y + 44, this.bossRoomBounds.width - 40, this.bossRoomBounds.height - 64);
     this.cameras.main.setBounds(this.bossRoomBounds.x, this.bossRoomBounds.y, this.bossRoomBounds.width, this.bossRoomBounds.height);
-    this.player.setPosition(this.bossRoomBounds.x + 140, this.bossRoomBounds.y + 170);
+    this.player.setPosition(this.bossRoomBounds.x + 150, this.bossRoomBounds.y + 260);
     this.player.setVelocity(0, 0);
     this.player.setCollideWorldBounds(true);
     this.cameras.main.setScroll(this.bossRoomBounds.x, this.bossRoomBounds.y);
     this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
     this.cameras.main.flash(250, 180, 0, 0);
-    this.showPrompt('Tete, The Gooner', 'GIVE ME THE ABG AND THE CUPON');
-    this.questHud.textContent = 'Boss Fight - Gdolf 30/30 | Tete 50/50';
+    this.showPrompt('Tete, The Gooner', 'GIVE ME THE ABG AND THE CUPON! Evită petele albe și halbele de bere.');
     this.createBoss();
     this.updateHealthHud();
   }
 
   createBoss() {
-    if (this.boss) {
-      return;
-    }
-
-    const graphics = this.make.graphics();
-    graphics.fillStyle(0x5f1d2c, 1);
-    graphics.fillRect(0, 0, 34, 50);
-    graphics.fillStyle(0xc7c9d1, 1);
-    graphics.fillRect(7, 7, 20, 12);
-    graphics.fillStyle(0x2d1a1a, 1);
-    graphics.fillRect(9, 9, 4, 4);
-    graphics.fillRect(20, 9, 4, 4);
-    graphics.fillStyle(0x8c0d1b, 1);
-    graphics.fillRect(10, 18, 14, 6);
-    graphics.fillStyle(0x3d2a2a, 1);
-    graphics.fillRect(6, 28, 6, 16);
-    graphics.fillRect(22, 28, 6, 16);
-    graphics.fillStyle(0x7f1a2d, 1);
-    graphics.fillRect(14, 40, 6, 8);
-    graphics.generateTexture('tete-boss', 34, 50);
-    graphics.destroy();
-
-    this.boss = this.physics.add.sprite(920, 610, 'tete-boss');
-    this.boss.setDepth(30);
-    this.boss.setScale(1.9);
-    this.boss.setCollideWorldBounds(true);
-    this.boss.setImmovable(true);
-    this.boss.body.setSize(48, 68);
-    this.boss.body.setOffset(8, 14);
-
-    this.bossLabel = this.add.text(920, 560, 'Tete, The Gooner', {
-      fontFamily: 'Arial',
-      fontSize: '12px',
-      color: '#ffe0ee',
-      stroke: '#1f1f1f',
-      strokeThickness: 3,
-      align: 'center',
-      backgroundColor: 'rgba(0, 0, 0, 0.15)',
-      padding: { x: 4, y: 2 },
-    });
-    this.bossLabel.setOrigin(0.5, 0.5);
-    this.bossLabel.setDepth(35);
-    this.bossHealthText = this.add.text(920, 580, '50/50', {
-      fontFamily: 'Arial',
-      fontSize: '12px',
-      color: '#ffd166',
-      stroke: '#1f1f1f',
-      strokeThickness: 4,
-      align: 'center',
-    });
-    this.bossHealthText.setOrigin(0.5, 0.5);
-    this.bossHealthText.setDepth(35);
+    if (!this.boss) createBoss(this);
   }
 
   damageBoss(amount) {
@@ -1566,9 +1304,9 @@ class FarmScene extends Phaser.Scene {
 
     this.bossHealth = Math.max(0, this.bossHealth - amount);
     this.boss.setTint(0xff7d7d);
-    this.time.delayedCall(120, () => this.boss.clearTint());
-    this.bossHealthText.setText(`${this.bossHealth}/${this.maxBossHealth}`);
-    this.questHud.textContent = `Boss Fight - Gdolf ${this.playerHealth}/${this.maxPlayerHealth} | Tete ${this.bossHealth}/${this.maxBossHealth}`;
+    this.time.delayedCall(120, () => this.boss?.active && this.boss.clearTint());
+    updateBossHealth(this);
+    this.updateHealthHud();
 
     if (this.bossHealth <= 0) {
       this.finishBossFight();
@@ -1576,42 +1314,18 @@ class FarmScene extends Phaser.Scene {
   }
 
   finishBossFight() {
+    const dropX = this.boss.x;
+    const dropY = this.boss.y + 25;
+    clearBossAttacks(this, true);
     this.bossFightActive = false;
     this.bossDefeated = true;
-    this.bossRoomActive = false;
+    this.bossRoomActive = true;
     this.bossTransitioning = false;
     this.gameOver = false;
-    this.bossRoomLayer.setVisible(false);
-    this.worldGround.setVisible(true);
-    this.worldObjects.forEach((obj) => obj.setVisible(true));
-    this.npcs.forEach((villager) => {
-      villager.npc.setVisible(true);
-      villager.label.setVisible(true);
-      villager.marker.setVisible(true);
-      if (villager.minimapMarker) {
-        villager.minimapMarker.style.display = 'block';
-      }
-    });
-    this.goldPickups.forEach((pickup) => {
-      pickup.sprite.setVisible(true);
-    });
-    if (this.couponKeeper) {
-      this.couponKeeper.setVisible(true);
-      this.couponKeeperLabel.setVisible(true);
-      this.couponKeeperMarker.setVisible(true);
-    }
-    this.physics.world.setBounds(0, 0, worldWidth, worldHeight);
-    this.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
-    this.player.setPosition(180, 220);
-    this.cameras.main.setScroll(0, 0);
-    this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
-    this.questHud.textContent = 'Boss defeated - Tete is down';
-    this.showBossVictoryDialog();
-    this.showPrompt('Tete, The Gooner', 'NO... the ABG and coupon were never yours.');
+    this.hidePrompt();
     this.boss.destroy();
-    if (this.bossLabel) this.bossLabel.destroy();
-    if (this.bossHealthText) this.bossHealthText.destroy();
     this.boss = null;
+    dropBossLoot(this, dropX, dropY);
   }
 
   damagePlayer(amount) {
@@ -1620,14 +1334,16 @@ class FarmScene extends Phaser.Scene {
     }
 
     this.playerHealth = Math.max(0, this.playerHealth - amount);
+    updatePlayerHealth(this);
+    this.updatePlayerHeadHealth();
     this.player.setTint(0xff7d7d);
     this.time.delayedCall(140, () => this.player.clearTint());
-    this.questHud.textContent = `Boss Fight - Gdolf ${this.playerHealth}/${this.maxPlayerHealth} | Tete ${this.bossHealth}/${this.maxBossHealth}`;
+    this.updateHealthHud();
 
     if (this.playerHealth <= 0) {
       this.playerHealth = 0;
       this.showDeathScreen();
-      this.questHud.textContent = 'You died - Tete wins';
+      this.setQuest('Ai fost învins', 'Tete a câștigat lupta.');
     }
   }
 
@@ -1644,79 +1360,43 @@ class FarmScene extends Phaser.Scene {
 
   update() {
     if (this.gameOver) {
+      updateRush(this);
+      updateRewards(this);
       return;
     }
 
     this.checkBossTrigger();
 
     if (this.bossFightActive && this.boss) {
-      const bossSpeed = 42;
-      const dx = this.player.x - this.boss.x;
-      const dy = this.player.y - this.boss.y;
-      const distance = Math.hypot(dx, dy) || 1;
-      if (distance > 60) {
-        this.boss.setVelocity((dx / distance) * bossSpeed, (dy / distance) * bossSpeed);
-      } else {
-        this.boss.setVelocity(0, 0);
+      updateBoss(this);
+      if (this.gameOver) {
+        this.player.setVelocity(0, 0);
+        updateRush(this);
+        return;
       }
-
-      this.player.x = Phaser.Math.Clamp(this.player.x, this.bossRoomBounds.x + 40, this.bossRoomBounds.x + this.bossRoomBounds.width - 40);
-      this.player.y = Phaser.Math.Clamp(this.player.y, this.bossRoomBounds.y + 40, this.bossRoomBounds.y + this.bossRoomBounds.height - 40);
-
-      this.bossAttackCooldown -= this.game.loop.delta;
-      if (this.bossAttackCooldown <= 0) {
-        this.bossAttackCooldown = 1400;
-
-        const shots = 3;
-        const baseAngle = Phaser.Math.Angle.Between(this.boss.x, this.boss.y, this.player.x, this.player.y);
-
-        for (let i = 0; i < shots; i += 1) {
-          const offset = (i - (shots - 1) / 2) * 0.12;
-          const angle = baseAngle + offset;
-          const projectileType = i % 2 === 0 ? 'projectile' : 'beer-projectile';
-          const projectile = this.physics.add.image(this.boss.x, this.boss.y, projectileType);
-          projectile.setDepth(26);
-          projectile.setScale(1.15);
-          projectile.setAlpha(0.96);
-          projectile.setTint(i % 2 === 0 ? 0xffffff : 0xf0b64a);
-          projectile.setCircle(6);
-          projectile.body.setAllowGravity(false);
-          projectile.body.setSize(12, 12);
-          projectile.setVelocity(Math.cos(angle) * 230, Math.sin(angle) * 230);
-          this.bossProjectiles.add(projectile);
-
-          this.time.delayedCall(2200, () => {
-            if (projectile && projectile.active) {
-              projectile.destroy();
-            }
-          });
-        }
-      }
-
-      this.bossProjectiles.children.each((projectile) => {
-        if (!projectile || !projectile.active) {
-          return;
-        }
-
-        const playerDistance = Phaser.Math.Distance.Between(this.player.x, this.player.y, projectile.x, projectile.y);
-        if (playerDistance < 18) {
-          projectile.destroy();
-          this.damagePlayer(4);
-        }
-
-        if (projectile.x < 0 || projectile.x > worldWidth || projectile.y < 0 || projectile.y > worldHeight) {
-          projectile.destroy();
-        }
-      });
     }
 
     this.updateMinimap();
+    updateBossLoot(this);
 
     if (!this.player) {
       return;
     }
 
-    const speed = 180;
+    // Sort by feet so characters pass behind roofs and foliage naturally.
+    if (!this.bossRoomActive) {
+      this.player.setDepth(10 + (this.player.y + 18) / 100);
+      this.npcs.forEach(({ npc }) => npc.setDepth(10 + (npc.y + 18) / 100));
+      this.couponKeeper?.setDepth(10 + (this.couponKeeper.y + 18) / 100);
+      this.abgNpc?.setDepth(10 + (this.abgNpc.y + 18) / 100);
+    } else {
+      this.player.setDepth(10 + (this.player.y + 18) / 100);
+    }
+    this.playerWeapon?.setDepth(this.player.depth + 0.02);
+    this.playerCoupon?.setDepth(this.player.depth + 0.03);
+
+    const speed = updateRush(this);
+    updateRewards(this);
     const moveX = Number(this.cursors.right.isDown) - Number(this.cursors.left.isDown);
     const moveY = Number(this.cursors.down.isDown) - Number(this.cursors.up.isDown);
 
@@ -1799,6 +1479,7 @@ class FarmScene extends Phaser.Scene {
       this.nameLabel.x = this.player.x;
       this.nameLabel.y = this.player.y - 22;
     }
+    this.updatePlayerHeadHealth();
 
     if (this.couponKeeper) {
       const keeperDistance = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.couponKeeper.x, this.couponKeeper.y);
@@ -1806,13 +1487,6 @@ class FarmScene extends Phaser.Scene {
         this.nearbyCouponKeeper = this.couponKeeper;
       } else if (this.nearbyCouponKeeper) {
         this.nearbyCouponKeeper = null;
-      }
-    }
-
-    if (this.bossTesterNpc) {
-      const testerDistance = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.bossTesterNpc.x, this.bossTesterNpc.y);
-      if (testerDistance < 60) {
-        this.game.canvas.style.cursor = 'pointer';
       }
     }
 
@@ -1830,11 +1504,17 @@ class FarmScene extends Phaser.Scene {
           villager.direction.y = Math.sin(angle);
         }
 
+        if (npc.body.blocked.left) villager.direction.x = Math.abs(villager.direction.x);
+        if (npc.body.blocked.right) villager.direction.x = -Math.abs(villager.direction.x);
+        if (npc.body.blocked.up) villager.direction.y = Math.abs(villager.direction.y);
+        if (npc.body.blocked.down) villager.direction.y = -Math.abs(villager.direction.y);
+
         const moveX = villager.direction.x;
         const moveY = villager.direction.y;
         const length = Math.hypot(moveX, moveY) || 1;
-        const vx = (moveX / length) * villager.speed;
-        const vy = (moveY / length) * villager.speed;
+        const multiplier = slowMultiplier(npc, this.time.now);
+        const vx = (moveX / length) * villager.speed * multiplier;
+        const vy = (moveY / length) * villager.speed * multiplier;
         npc.setVelocity(vx, vy);
 
         const walkFrameIndex = Math.floor((this.time.now / 150) % npc.walkFrames.length);
@@ -1904,6 +1584,15 @@ class FarmScene extends Phaser.Scene {
     });
   }
 
+  updatePlayerHeadHealth() {
+    const bar = this.playerHeadHealth;
+    if (!bar) return;
+    bar.clear().setPosition(this.player.x - 19, this.player.y - 43);
+    bar.fillStyle(0x15221c, 0.95).fillRoundedRect(0, 0, 38, 5, 2);
+    bar.fillStyle(this.playerHealth <= 10 ? 0xe45a68 : 0x91d591).fillRect(1, 1, 36 * this.playerHealth / this.maxPlayerHealth, 3);
+    this.playerHeadHealthText.setPosition(this.player.x, this.player.y - 49).setText(`${this.playerHealth}/${this.maxPlayerHealth}`);
+  }
+
   createDialogueBox() {
     this.dialogBox = document.createElement('div');
     this.dialogBox.className = 'npc-dialog hidden';
@@ -1923,15 +1612,15 @@ class FarmScene extends Phaser.Scene {
     this.dialogOkButton = this.dialogBox.querySelector('.npc-dialog-ok');
     this.dialogOkButton.addEventListener('click', () => {
       this.hidePrompt();
-      if (this.hasCoupon && !this.missionKillVillagers) {
+      if (this.dialogName.textContent === 'Cupon Keeper' && this.hasCoupon && !this.missionKillVillagers) {
         this.missionKillVillagers = true;
-        this.questHud.textContent = 'Next Mission - Kill all villagers';
+        this.showVillagerObjective();
       }
     });
     document.body.appendChild(this.dialogBox);
   }
 
-  showPrompt(name, message, x, y) {
+  showPrompt(name, message, x, y, persistent = false) {
     if (!this.dialogBox) {
       return;
     }
@@ -1942,8 +1631,11 @@ class FarmScene extends Phaser.Scene {
 
     this.dialogName.textContent = name;
     this.dialogText.textContent = message;
+    const portrait = this.dialogBox.querySelector('.npc-dialog-avatar img');
+    portrait.src = name.startsWith('Tete') ? '/assets/Tete.png' : '/assets/CuponKeeper.png';
+    portrait.alt = name;
     this.dialogBox.classList.remove('hidden');
-    this.dialogHideTimeout = setTimeout(() => {
+    this.dialogHideTimeout = persistent ? null : setTimeout(() => {
       this.hidePrompt();
     }, 5000);
   }

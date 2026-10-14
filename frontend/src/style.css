@@ -615,3 +615,130 @@ canvas {
   transform: translateY(1px);
 }
 
+.rush-skill {
+  position: fixed;
+  left: 50%;
+  bottom: 118px;
+  transform: translateX(-50%);
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border: 1px solid #b85156;
+  border-radius: 9px;
+  background: #301b23ee;
+  color: #ffe0d6;
+  font: bold 13px Arial, sans-serif;
+  cursor: pointer;
+}
+
+.rush-key {
+  padding: 4px 7px;
+  border: 1px solid #d9827b;
+  border-radius: 5px;
+  background: #6a2635;
+}
+
+.rush-status { min-width: 62px; color: #ebaaa6; }
+.rush-skill:disabled { cursor: default; opacity: 0.75; }
+.rush-skill.active {
+  opacity: 1;
+  border-color: #ff796b;
+  box-shadow: 0 0 20px #ef25485c;
+}
+.rush-skill:focus-visible { outline: 2px solid #ffd2a3; outline-offset: 3px; }
+
+.player-health-hud {
+  position: fixed;
+  top: 122px;
+  left: 16px;
+  width: 220px;
+  padding: 12px 14px;
+  z-index: 151;
+  border: 1px solid #89b89c;
+  border-radius: 10px;
+  background: #172520ed;
+  color: #e1f4e5;
+  font: 13px Arial, sans-serif;
+  pointer-events: none;
+}
+.player-health-heading { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.player-health-track { height: 10px; overflow: hidden; background: #090f0c; border-radius: 5px; }
+.player-health-fill { height: 100%; background: linear-gradient(90deg, #459769, #9cdb99); transition: width 120ms ease; }
+.player-health-hud.low { border-color: #f37b7b; }
+.player-health-hud.low .player-health-fill { background: #e45a68; }
+
+.quest-hud {
+  width: min(330px, calc(100vw - 64px));
+  padding: 14px 18px;
+  background: linear-gradient(140deg, #202b2bf5, #161c23f5);
+  border: 1px solid #ccb47a;
+  border-left: 4px solid #f5cc79;
+  box-shadow: 0 8px 24px #0006;
+  text-shadow: none;
+}
+.quest-kicker { font-size: 10px; letter-spacing: 0.15em; color: #f4ce86; margin-bottom: 6px; }
+.quest-title { font-size: 20px; line-height: 1.2; color: #fff1d0; }
+.quest-detail { font-size: 13px; font-weight: 400; line-height: 1.5; margin-top: 7px; color: #e1e8df; }
+.quest-progress { font-size: 12px; color: #c8f1ac; margin-top: 9px; padding-top: 8px; border-top: 1px solid #ffffff24; }
+.gold-hud { top: 186px; }
+.player-health-hud { top: 246px; }
+.death-breath-skill, .flashlight-skill { bottom: 166px; }
+.death-breath-skill { background: #22301dee; border-color: #8eb568; }
+.death-breath-skill .rush-key { background: #42552e; border-color: #a7c981; }
+.flashlight-skill { background: #2a2432ee; border-color: #c4a3c8; }
+.flashlight-icon {
+  display: inline-block;
+  width: 17px;
+  height: 29px;
+  border-radius: 7px 7px 6px 6px;
+  background: linear-gradient(90deg, #252733, #666c7e 30%, #2a2d3b 65%);
+  border: 2px solid #9095a4;
+  position: relative;
+}
+.flashlight-icon::before {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: -3px;
+  width: 17px;
+  height: 9px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #754757 20%, #d69fac 25%, #d69fac 65%, #252733 70%);
+  border: 2px solid #9095a4;
+}
+.npc-dialog-avatar img { image-rendering: pixelated; }
+
+.boss-health-hud {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(460px, 46vw);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  z-index: 152;
+  border: 2px solid #b97078;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #351d2bf5, #1b1723f5);
+  box-shadow: 0 8px 28px #0007;
+  color: #ffe9e1;
+  font-family: Arial, sans-serif;
+  pointer-events: none;
+}
+.boss-health-portrait { width: 58px; height: 58px; object-fit: cover; border: 2px solid #d9ad84; border-radius: 9px; }
+.boss-health-content { flex: 1; min-width: 0; }
+.boss-health-heading { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 10px; font-size: 17px; }
+.boss-health-value { white-space: nowrap; color: #ffd3ae; font-weight: bold; }
+.boss-health-track { height: 18px; overflow: hidden; border: 1px solid #a96872; border-radius: 6px; background: #100d16; }
+.boss-health-fill { height: 100%; background: linear-gradient(90deg, #a83750, #f2797c); transition: width 120ms ease; }
+@media (max-width: 1100px) {
+  .boss-health-hud { width: min(420px, calc(100vw - 70px)); }
+  body:has(.boss-health-hud) .quest-hud { top: 112px; }
+  body:has(.boss-health-hud) .gold-hud { top: 292px; }
+  body:has(.boss-health-hud) .player-health-hud { top: 352px; }
+}
+
