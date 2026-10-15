@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { beginChapterDialogue, useChapterPortal, enterLevelTwo } from '../src/chapter-two.js';
+import { showVictoryDialogue, beginChapterDialogue, useChapterPortal, enterLevelTwo } from '../src/chapter-two.js';
 
 const chain = () => {
   let proxy;
@@ -32,6 +32,22 @@ function scene() {
     obstacles: { getChildren: () => [{ body: { enable: true } }] },
   };
 }
+
+test('victory dialogue follows completion animation, announces party, and hides reward effects', () => {
+  const s = scene();
+  showVictoryDialogue(s);
+  assert.equal(s.chapterDialogueOpen, true);
+  assert.equal(s.overlays.length, 0);
+  s.callbacks[0]();
+  assert.equal(s.overlays.length, 1);
+  assert(s.overlays[0].innerHTML.includes('party-ul tău'));
+  assert(s.overlays[0].innerHTML.includes('Bere'));
+  assert(s.overlays[0].innerHTML.includes('Sperma'));
+  assert(!s.overlays[0].innerHTML.includes('Death Breath'));
+  assert(!s.overlays[0].innerHTML.includes('Flashlight'));
+  s.overlays[0].button.click();
+  assert.equal(s.chapterDialogueOpen, false);
+});
 
 test('focused dialogue precedes the portal and cannot be opened twice', () => {
   const s = scene();

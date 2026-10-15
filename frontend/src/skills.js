@@ -46,7 +46,7 @@ export function createSwordAura(scene) {
 }
 
 export function activateSwordAura(scene) {
-  if (scene.gameOver || scene.bookOpen || scene.chapterDialogueOpen || scene.levelTransitioning || !scene.introOverlay.classList.contains('hidden') || !scene.inventoryUi.classList.contains('hidden')) return false;
+  if (scene.gameOver || scene.bookOpen || scene.npcDialogueOpen || scene.chapterDialogueOpen || scene.levelTransitioning || !scene.introOverlay.classList.contains('hidden') || !scene.inventoryUi.classList.contains('hidden')) return false;
   return scene.swordAuraSkill.activate(scene.time.now, hasSwordInHand(scene));
 }
 

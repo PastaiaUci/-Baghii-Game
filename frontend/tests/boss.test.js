@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createBoss, clearBossAttacks, updatePlayerHealth, puddleState, BEER_INTERVAL_MS } from '../src/boss.js';
+import { createBoss, clearBossAttacks, updatePlayerHealth, puddleState, BEER_INTERVAL_MS, restartBossFight } from '../src/boss.js';
 import { chooseReward, dropBossLoot, consumeNearbyBossLoot, clickBossLoot } from '../src/boss-loot.js';
 
 function object(x = 0, y = 0) {
@@ -39,7 +39,7 @@ function setup() {
       if (!this.playerHealth) { this.bossFightActive = false; clearBossAttacks(this); }
     },
     inventory: [{ type: 'empty' }],
-    setQuest() {}, showPrompt() {}, hidePrompt() {}, beginNextChapter() {},
+    setQuest() {}, showPrompt() {}, hidePrompt() {}, beginNextChapter() {}, showVictoryDialogue() {},
     updateInventoryList() {}, updateHotbarState() {}, selectWeapon() {},
   };
   createBoss(scene);
@@ -122,4 +122,36 @@ test('drops require proximity; consuming one removes both drops', () => {
   assert.equal(scene.bossLoot.length, 0);
   assert(drops.every(({ sprite, label, glow }) => sprite.destroyed && label.destroyed && glow.destroyed));
   assert.equal(consumeNearbyBossLoot(scene), false);
+});
+
+test('retry resets both health pools, attacks and cooldowns without removing inventory', () => {
+  const s = setup();
+  clearBossAttacks(s);
+  const oldBoss = s.boss;
+  const inventory = s.inventory;
+  s.gameOver = true;
+  s.bossFightActive = false;
+  s.playerHealth = 0;
+  s.maxBossHealth = 70;
+  s.bossHealth = 18;
+  s.projectiles = { clear() {} };
+  s.rushSkill = { activeUntil: 5000, readyAt: 15000 };
+  s.swordAuraSkill = { until: 5000, readyAt: 15000 };
+  s.deathBreath = { until: 3000, readyAt: 12000, nextTick: 500 };
+  s.updatePlayerHeadHealth = s.updateHealthHud = () => {};
+  s.cameras = { main: { flash() {} } };
+  restartBossFight(s);
+  assert.equal(s.playerHealth, 30);
+  assert.equal(s.bossHealth, 70);
+  assert.equal(s.gameOver, false);
+  assert.equal(s.bossFightActive, true);
+  assert.equal(oldBoss.destroyed, true);
+  assert.notEqual(s.boss, oldBoss);
+  assert.equal(s.bossArenaColliders.length, 4);
+  assert.equal(s.rushSkill.readyAt, 0);
+  assert.equal(s.swordAuraSkill.until, 0);
+  assert.equal(s.inventory, inventory);
+  const newBoss = s.boss;
+  restartBossFight(s);
+  assert.equal(s.boss, newBoss, 'repeated clicks cannot spawn another boss');
 });

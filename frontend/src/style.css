@@ -841,3 +841,10 @@ canvas {
 }
 @media (prefers-reduced-motion: reduce) { .chapter-dialogue section { animation: none; } }
 
+.chapter-two-title { top: 30%; animation-duration: 4s; }
+.chapter-two-title > span { display: block; font: 22px Georgia, serif; letter-spacing: 0.25em; color: #eed9a5; }
+
+.npc-modal.hidden { display: none; }
+.npc-modal[hidden] { display: none; }
+.npc-modal .npc-dialog-portrait { image-rendering: auto; }
+

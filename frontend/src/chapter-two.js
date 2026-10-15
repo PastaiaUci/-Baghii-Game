@@ -1,3 +1,24 @@
+export function showVictoryDialogue(scene) {
+  scene.hidePrompt();
+  scene.chapterDialogueOpen = true;
+  scene.player.setVelocity(0, 0);
+  scene.partyTete?.setVelocity(0, 0);
+  // Let the Level 1 completion animation finish before focusing the conversation.
+  scene.time.delayedCall(3200, () => {
+    const overlay = document.createElement('div');
+    overlay.className = 'chapter-dialogue';
+    overlay.innerHTML = '<section role="dialog" aria-modal="true" aria-labelledby="victory-title"><img src="/assets/Tete.png" alt="Tete"><div><small>TETE · NOU MEMBRU ÎN PARTY</small><h2 id="victory-title">De acum mergem împreună</h2><p>M-ai învins, Gdolf! De acum sunt în party-ul tău și te voi urma în aventură.</p><p>Înainte să plecăm, poți alege unul dintre cele două lichide preferate ale mele: <strong>Bere</strong> sau <strong>Sperma</strong>. Alege unul singur.</p><button type="button">Să alegem →</button></div></section>';
+    document.body.appendChild(overlay);
+    const button = overlay.querySelector('button');
+    button.focus();
+    button.addEventListener('click', () => {
+      scene.chapterDialogueOpen = false;
+      overlay.remove();
+    });
+    scene.events.once('shutdown', () => overlay.remove());
+  });
+}
+
 export function beginChapterDialogue(scene) {
   if (scene.chapterDialogueOpen || scene.chapterPortal || scene.currentLevel === 2) return;
   scene.hidePrompt();
@@ -135,4 +156,14 @@ export function enterLevelTwo(scene) {
   scene.add.text(800, 275, 'AUSTRIA · NIVELUL 2', { fontFamily: 'Georgia', fontSize: '28px', color: '#344d53' }).setOrigin(0.5);
   scene.add.text(800, 318, 'Pe urmele lui Mr. Grain / Bobiță', { fontFamily: 'Arial', fontSize: '15px', color: '#415c60' }).setOrigin(0.5);
   scene.setQuest('Nivelul 2 · În căutarea lui Bobiță', 'Mr. Grain a plecat supărat în Austria. Explorează satul alpin împreună cu Tete.');
+  showChapterTwoTitle(scene);
+}
+
+export function showChapterTwoTitle(scene) {
+  const overlay = document.createElement('div');
+  overlay.className = 'level-complete chapter-two-title';
+  overlay.innerHTML = '<div class="complete-emblem">II</div><strong>Leven 2 - Mr.GraiN</strong><span>Austria</span>';
+  document.body.appendChild(overlay);
+  scene.time.delayedCall(4000, () => overlay.remove());
+  scene.events.once('shutdown', () => overlay.remove());
 }

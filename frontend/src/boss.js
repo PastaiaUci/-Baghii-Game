@@ -294,3 +294,30 @@ export function clearBossAttacks(scene, keepArenaCollision = false) {
   scene.bossHealthHud?.remove();
   scene.bossShadow?.destroy();
 }
+
+export function restartBossFight(scene) {
+  if (!scene.gameOver || scene.bossDefeated) return;
+  scene.deathScreen?.remove();
+  scene.deathScreen = null;
+  scene.hidePrompt();
+  scene.boss?.destroy();
+  scene.boss = null;
+  scene.projectiles.clear(true, true);
+  scene.playerHealth = scene.maxPlayerHealth;
+  scene.bossHealth = scene.maxBossHealth;
+  scene.gameOver = false;
+  scene.bossFightActive = true;
+  scene.bossRoomActive = true;
+  scene.bossTransitioning = false;
+  scene.isAttacking = false;
+  scene.attackTimer = 0;
+  scene.rushSkill.activeUntil = scene.rushSkill.readyAt = 0;
+  scene.swordAuraSkill.until = scene.swordAuraSkill.readyAt = 0;
+  scene.deathBreath.until = scene.deathBreath.readyAt = scene.deathBreath.nextTick = 0;
+  scene.flashlightReadyAt = scene.slowVisualUntil = 0;
+  scene.player.clearTint().setPosition(scene.bossRoomBounds.x + 150, scene.bossRoomBounds.y + 260).setVelocity(0, 0);
+  createBoss(scene);
+  scene.updatePlayerHeadHealth();
+  scene.updateHealthHud();
+  scene.cameras.main.flash(300, 210, 220, 235);
+}

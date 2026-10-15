@@ -2,11 +2,12 @@ import Phaser from 'phaser';
 import { drawGdolf } from './player-art.js';
 import { createLaviniaTexture } from './lavinia-art.js';
 import { joinParty, updateParty, showLevelComplete, giveVictoryBook, openBook, closeBook } from './completion.js';
-import { beginChapterDialogue, useChapterPortal, clickChapterPortal, updateChapterPortal } from './chapter-two.js';
+import { showVictoryDialogue, beginChapterDialogue, useChapterPortal, clickChapterPortal, updateChapterPortal } from './chapter-two.js';
+import { showNpcDialogue, hideNpcDialogue } from './dialogue.js';
 import './style.css';
 import { createVillageGround, createVillageProps, createVillageTextures } from './village.js';
 import { createRushSkill, activateRush, updateRush } from './rush.js';
-import { createArena, createBoss, updateBoss, clearBossAttacks, updatePlayerHealth, updateBossHealth } from './boss.js';
+import { createArena, createBoss, updateBoss, clearBossAttacks, updatePlayerHealth, updateBossHealth, restartBossFight } from './boss.js';
 import { dropBossLoot, consumeNearbyBossLoot, clickBossLoot, updateBossLoot } from './boss-loot.js';
 import { createRewardSystem, activateDeathBreath, activateFlashlight, updateRewards, slowMultiplier } from './rewards.js';
 import { createSkillbar, createSwordAura, activateSwordAura, updateSwordAura, swordAuraBonus } from './skills.js';
@@ -136,7 +137,9 @@ class FarmScene extends Phaser.Scene {
     this.createDialogueBox();
 
     this.input.on('pointerdown', (pointer) => {
-      if (this.chapterDialogueOpen || this.levelTransitioning) return;
+      if (!this.introOverlay.classList.contains('hidden')) return;
+      if (this.gameOver) return;
+      if (this.npcDialogueOpen || this.chapterDialogueOpen || this.levelTransitioning) return;
       if (this.bookOpen) return;
       if (this.couponDialogueStep) return;
       if (this.inventoryUi && !this.inventoryUi.classList.contains('hidden')) {
@@ -150,15 +153,6 @@ class FarmScene extends Phaser.Scene {
       if (selectedItem?.type === 'flashlight') {
         activateFlashlight(this);
         return;
-      }
-
-      if (this.couponKeeper) {
-        const keeperDistance = Phaser.Math.Distance.Between(worldPoint.x, worldPoint.y, this.couponKeeper.x, this.couponKeeper.y);
-        if (keeperDistance < 60) {
-          this.nearbyCouponKeeper = this.couponKeeper;
-          this.buyCoupon();
-          return;
-        }
       }
 
       if (this.abgNpc && !this.abgPicked) {
@@ -190,7 +184,8 @@ class FarmScene extends Phaser.Scene {
 
     this.input.keyboard.on('keydown', (event) => {
       const key = event.key ? event.key.toLowerCase() : '';
-      if (this.chapterDialogueOpen || this.levelTransitioning) return;
+      if (this.gameOver) return;
+      if (this.npcDialogueOpen || this.chapterDialogueOpen || this.levelTransitioning) return;
       if (this.bookOpen) {
         if (key === 'escape') closeBook(this);
         return;
@@ -363,11 +358,12 @@ class FarmScene extends Phaser.Scene {
       this.game.canvas.style.cursor = 'default';
     });
 
-    this.input.on('gameobjectdown', (pointer, gameObject) => {
-      if (gameObject === this.couponKeeper) {
-        this.nearbyCouponKeeper = this.couponKeeper;
-        this.buyCoupon();
-      }
+    this.couponKeeper.on('pointerdown', () => {
+      if (!this.introOverlay.classList.contains('hidden') || this.gameOver || this.npcDialogueOpen ||
+          this.chapterDialogueOpen || this.levelTransitioning || this.bookOpen ||
+          !this.inventoryUi.classList.contains('hidden')) return;
+      this.nearbyCouponKeeper = this.couponKeeper;
+      this.buyCoupon();
     });
   }
 
@@ -672,7 +668,7 @@ class FarmScene extends Phaser.Scene {
   }
 
   selectWeapon(slotName) {
-    if (this.chapterDialogueOpen || this.levelTransitioning) return;
+    if (this.npcDialogueOpen || this.chapterDialogueOpen || this.levelTransitioning) return;
     this.selectedWeapon = slotName;
     if (this.inventory[Number(slotName.replace('slot-', '')) - 1]?.type === 'book') openBook(this);
     this.hotbarSlots?.forEach((slot) => {
@@ -1243,7 +1239,15 @@ class FarmScene extends Phaser.Scene {
       return;
     }
 
-    this.deathScreen = this.showFullscreenDialog('MUIE', 'Tete, The Gooner a te-a rupt in piept. Ai murit.', 'death');
+    this.deathScreen = document.createElement('div');
+    this.deathScreen.className = 'chapter-dialogue death-dialogue';
+    this.deathScreen.innerHTML = '<section role="dialog" aria-modal="true" aria-labelledby="death-dialogue-title"><img src="/assets/Gdolf.png" alt="Gdolf"><div><small>GDOLF · AI MURIT</small><h2 id="death-dialogue-title">Mai încerc o dată</h2><p>Bagamias pula am murit nu mai e vremea de trait dar reincer iara coaie ce as suge pula</p><button type="button">Reîncepe lupta →</button></div></section>';
+    document.body.appendChild(this.deathScreen);
+    const retryButton = this.deathScreen.querySelector('button');
+    retryButton.focus();
+    retryButton.addEventListener('click', () => restartBossFight(this));
+    const deathScreen = this.deathScreen;
+    this.events.once('shutdown', () => deathScreen.remove());
     this.gameOver = true;
     clearBossAttacks(this);
     this.player.setVelocity(0, 0);
@@ -1327,6 +1331,10 @@ class FarmScene extends Phaser.Scene {
     }
   }
 
+  showVictoryDialogue() {
+    showVictoryDialogue(this);
+  }
+
   beginNextChapter() {
     beginChapterDialogue(this);
   }
@@ -1379,6 +1387,7 @@ class FarmScene extends Phaser.Scene {
   }
 
   update() {
+    if (this.npcDialogueOpen) return;
     if (this.gameOver) {
       updateRush(this);
       updateRewards(this);
@@ -1623,16 +1632,18 @@ class FarmScene extends Phaser.Scene {
 
   createDialogueBox() {
     this.dialogBox = document.createElement('div');
-    this.dialogBox.className = 'npc-dialog hidden';
+    this.dialogBox.className = 'chapter-dialogue npc-modal hidden';
+    this.dialogBox.hidden = true;
     this.dialogBox.innerHTML = `
-      <div class="npc-dialog-avatar">
-        <img src="/assets/CuponKeeper.png" alt="NPC portrait" />
-      </div>
+      <section role="dialog" aria-modal="true" aria-labelledby="npc-dialog-title">
+      <img class="npc-dialog-portrait" src="/assets/CuponKeeper.png" alt="NPC portrait" />
       <div class="npc-dialog-content">
-        <div class="npc-dialog-name">Cupon Keeper</div>
-        <div class="npc-dialog-text">Am nevoie de 100 de lovele pentru un cupon.</div>
+        <small class="npc-dialog-kicker">CONVERSAȚIE</small>
+        <h2 class="npc-dialog-name" id="npc-dialog-title">Cupon Keeper</h2>
+        <p class="npc-dialog-text">Am nevoie de 100 de lovele pentru un cupon.</p>
+        <button type="button" class="npc-dialog-ok">Continuă →</button>
       </div>
-      <button type="button" class="npc-dialog-ok">OK</button>
+      </section>
     `;
 
     this.dialogName = this.dialogBox.querySelector('.npc-dialog-name');
@@ -1660,62 +1671,23 @@ class FarmScene extends Phaser.Scene {
       }
     });
     document.body.appendChild(this.dialogBox);
+    this.events.once('shutdown', () => this.dialogBox.remove());
   }
 
   showPrompt(name, message, x, y, persistent = false) {
-    if (!this.dialogBox) {
-      return;
-    }
-
-    if (this.dialogHideTimeout) {
-      clearTimeout(this.dialogHideTimeout);
-    }
-
-    this.dialogName.textContent = name;
-    this.dialogText.textContent = message;
-    const portrait = this.dialogBox.querySelector('.npc-dialog-avatar img');
-    portrait.src = name.startsWith('Tete') ? '/assets/Tete.png' : name.startsWith('Gdolf') ? '/assets/Gdolf.png' : '/assets/CuponKeeper.png';
-    portrait.alt = name;
-    this.dialogBox.classList.remove('hidden');
-    this.dialogHideTimeout = persistent ? null : setTimeout(() => {
-      this.hidePrompt();
-    }, 5000);
+    showNpcDialogue(this, name, message);
   }
 
   hidePrompt() {
-    if (!this.dialogBox) {
-      return;
-    }
-
-    if (this.dialogHideTimeout) {
-      clearTimeout(this.dialogHideTimeout);
-      this.dialogHideTimeout = null;
-    }
-    this.dialogBox.classList.add('hidden');
+    hideNpcDialogue(this);
   }
 
   showThoughtBubble(message) {
-    if (!this.thoughtBubble) {
-      this.thoughtBubble = document.createElement('div');
-      this.thoughtBubble.className = 'thought-bubble hidden';
-      document.body.appendChild(this.thoughtBubble);
-    }
-
-    this.thoughtBubble.textContent = message;
-    this.thoughtBubble.classList.remove('hidden');
-
-    if (this.thoughtBubbleTimeout) {
-      clearTimeout(this.thoughtBubbleTimeout);
-    }
-    this.thoughtBubbleTimeout = setTimeout(() => {
-      this.hideThoughtBubble();
-    }, 5000);
+    this.showPrompt('Gdolf', message);
   }
 
   hideThoughtBubble() {
-    if (this.thoughtBubble) {
-      this.thoughtBubble.classList.add('hidden');
-    }
+    if (this.dialogName?.textContent === 'Gdolf') this.hidePrompt();
   }
 }
 

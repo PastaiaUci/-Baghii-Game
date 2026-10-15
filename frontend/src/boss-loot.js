@@ -39,7 +39,7 @@ export function dropBossLoot(scene, x, y) {
     return { ...item, sprite, label, glow };
   });
   scene.setQuest('Recompensa lui Tete', 'Alege un singur lichid · Apropie-te și apasă E / click.');
-  scene.showPrompt('Tete, The Gooner', 'M-ai învins, Gdolf! Poți alege unul dintre cele două lichide preferate ale mele. Berea îți oferă Death Breath: damage în jurul tău timp de 3 secunde. Sperma îți oferă Flashlight: un item care încetinește inamicii.', undefined, undefined, true);
+  scene.showVictoryDialogue();
   scene.events.once('shutdown', () => clearBossLoot(scene));
 }
 
@@ -48,6 +48,7 @@ function distanceTo(scene, item) {
 }
 
 function consume(scene, item) {
+  if (scene.chapterDialogueOpen) return false;
   if (item.type === 'sperma' && !scene.inventory.some(({ type }) => type === 'empty')) return false;
   if (!scene.inventoryUi.classList.contains('hidden') || distanceTo(scene, item) > 60 ||
       !chooseReward(scene.bossLootState, item.type)) return false;
