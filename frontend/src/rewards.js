@@ -21,7 +21,7 @@ export function slowMultiplier(enemy, now) {
 }
 
 function usable(scene) {
-  return !scene.gameOver && scene.introOverlay.classList.contains('hidden') && scene.inventoryUi.classList.contains('hidden');
+  return !scene.gameOver && !scene.bookOpen && scene.introOverlay.classList.contains('hidden') && scene.inventoryUi.classList.contains('hidden');
 }
 
 function nearbyEnemies(scene, radius) {

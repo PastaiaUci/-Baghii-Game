@@ -65,6 +65,7 @@ export function createVillageProps(scene) {
     scene.worldObjects.push(zone);
     return zone;
   };
+  createVillageWalls(scene, scene.physics.world.bounds.width, scene.physics.world.bounds.height);
   const decoration = scene.add.graphics().setDepth(1);
   scene.worldObjects.push(decoration);
   const houses = [
@@ -125,6 +126,41 @@ export function createVillageProps(scene) {
   well.fillTriangle(1219, 486, 1277, 486, 1248, 468);
   scene.worldObjects.push(well);
   solid(1248, 528, 44, 24);
+}
+
+export function createVillageWalls(scene, width, height) {
+  // Four continuous bodies close the corners as well as the visible stone border.
+  const walls = [
+    { x: 0, y: 0, w: width, h: 44 },
+    { x: 0, y: height - 32, w: width, h: 32 },
+    { x: 0, y: 44, w: 32, h: height - 76 },
+    { x: width - 32, y: 44, w: 32, h: height - 76 },
+  ];
+  walls.forEach(({ x, y, w, h }) => {
+    const zone = scene.add.zone(x + w / 2, y + h / 2, w, h);
+    scene.obstacles.add(zone);
+    scene.worldObjects.push(zone);
+    const g = scene.add.graphics().setDepth(10 + (y + h) / 100);
+    scene.worldObjects.push(g);
+    g.fillStyle(0x3c4648).fillRect(x, y, w, h);
+    for (let row = 0; row < h; row += 12) {
+      for (let col = 0; col < w; col += 24) {
+        const offset = row % 24 ? -12 : 0;
+        const left = Math.max(0, col + offset);
+        const right = Math.min(w, col + offset + 22);
+        if (right <= left) continue;
+        g.fillStyle((row + col) % 48 ? 0x79847a : 0x899184);
+        g.fillRect(x + left, y + row + 1, right - left, Math.min(10, h - row - 1));
+        g.fillStyle(0xa4ac97, 0.55).fillRect(x + left + 1, y + row + 1, Math.max(1, right - left - 2), 2);
+      }
+    }
+    g.fillStyle(0xa6aa92).fillRect(x, y, w, 3);
+    g.fillStyle(0x263c2d, 0.5).fillRect(x, y + h - 3, w, 3);
+    // Small moss patches soften the stone without obscuring its edge.
+    for (let col = x + 7; col < x + w - 3; col += 53) {
+      g.fillStyle(0x5b7848).fillRect(col, y + h - 5, Math.min(8, x + w - col), 3);
+    }
+  });
 }
 
 export function createVillageTextures(scene) {
