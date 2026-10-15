@@ -162,7 +162,7 @@ export function enterLevelTwo(scene) {
 export function showChapterTwoTitle(scene) {
   const overlay = document.createElement('div');
   overlay.className = 'level-complete chapter-two-title';
-  overlay.innerHTML = '<div class="complete-emblem">II</div><strong>Leven 2 - Mr.GraiN</strong><span>Austria</span>';
+  overlay.innerHTML = '<div class="complete-emblem">II</div><strong>Level 2 - Mr.GraiN</strong><span>Austria</span>';
   document.body.appendChild(overlay);
   scene.time.delayedCall(4000, () => overlay.remove());
   scene.events.once('shutdown', () => overlay.remove());

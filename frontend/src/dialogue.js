@@ -9,7 +9,7 @@ export function showNpcDialogue(scene, name, message) {
   scene.dialogText.textContent = message;
   scene.dialogBox.querySelector('.npc-dialog-kicker').textContent = name.startsWith('Gdolf') ? 'GDOLF · GÂNDURI' : 'CONVERSAȚIE';
   const portrait = scene.dialogBox.querySelector('.npc-dialog-portrait');
-  portrait.src = name.startsWith('Tete') ? '/assets/Tete.png' : name.startsWith('Gdolf') ? '/assets/Gdolf.png' : '/assets/CuponKeeper.png';
+  portrait.src = scene.npcPortraits?.[name] || (name.startsWith('Tete') ? '/assets/Tete.png' : name.startsWith('Gdolf') ? '/assets/Gdolf.png' : '/assets/CuponKeeper.png');
   portrait.alt = name;
   scene.dialogBox.classList.remove('hidden');
   scene.dialogBox.hidden = false;
@@ -31,6 +31,13 @@ export function hideNpcDialogue(scene) {
     scene.nextPuddleAt += elapsed;
     scene.bossPuddles?.forEach((puddle) => { puddle.createdAt += elapsed; });
     scene.bossProjectiles?.getChildren().forEach((beer) => { beer.expiresAt += elapsed; });
+  }
+  if (scene.villageEnraged) {
+    scene.npcs.forEach((villager) => {
+      villager.nextAttackAt += elapsed;
+      if (villager.windingUp) villager.windupUntil += elapsed;
+    });
+    scene.villagerArrows.getChildren().forEach((arrow) => { arrow.expiresAt += elapsed; });
   }
   scene.npcDialogueOpen = false;
   scene.physics.world.resume();

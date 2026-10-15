@@ -1,3 +1,5 @@
+import { createTavern } from './tavern.js';
+
 // Visuals and solid footprints share world coordinates; roofs and foliage are decorative.
 export function createVillageGround(scene, width, height) {
   const g = scene.make.graphics();
@@ -66,6 +68,7 @@ export function createVillageProps(scene) {
     return zone;
   };
   createVillageWalls(scene, scene.physics.world.bounds.width, scene.physics.world.bounds.height);
+  createTavern(scene);
   const decoration = scene.add.graphics().setDepth(1);
   scene.worldObjects.push(decoration);
   const houses = [

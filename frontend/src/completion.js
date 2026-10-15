@@ -69,6 +69,15 @@ export function updateParty(scene) {
   scene.partyShadow.setPosition(npc.x, npc.body.bottom - 3);
 }
 
+export function showLevelOneTitle(scene) {
+  const overlay = document.createElement('div');
+  overlay.className = 'level-complete level-intro-title';
+  overlay.innerHTML = '<div class="complete-emblem">I</div><strong>Level 1 - Find Tete</strong><span>Satul Betivilor</span>';
+  document.body.appendChild(overlay);
+  scene.time.delayedCall(4000, () => overlay.remove());
+  scene.events.once('shutdown', () => overlay.remove());
+}
+
 export function showLevelComplete(scene) {
   const overlay = document.createElement('div');
   overlay.className = 'level-complete';

@@ -841,10 +841,17 @@ canvas {
 }
 @media (prefers-reduced-motion: reduce) { .chapter-dialogue section { animation: none; } }
 
-.chapter-two-title { top: 30%; animation-duration: 4s; }
-.chapter-two-title > span { display: block; font: 22px Georgia, serif; letter-spacing: 0.25em; color: #eed9a5; }
+.chapter-two-title, .level-intro-title { top: 30%; animation-duration: 4s; }
+.chapter-two-title > span, .level-intro-title > span { display: block; font: 22px Georgia, serif; letter-spacing: 0.25em; color: #eed9a5; }
 
 .npc-modal.hidden { display: none; }
 .npc-modal[hidden] { display: none; }
 .npc-modal .npc-dialog-portrait { image-rendering: auto; }
+
+.audio-toggle { position: fixed; right: 16px; bottom: 20px; z-index: 160; padding: 8px 12px; border: 1px solid #a4ad91; border-radius: 7px; background: #1b2725e8; color: #e3e9d5; font: 11px Arial, sans-serif; cursor: pointer; }
+
+.tavern-hud { position: fixed; left: 16px; top: 16px; z-index: 160; padding: 12px 16px; border: 1px solid #b4905e; border-radius: 10px; background: #2b201aed; color: #f0d8af; font: 12px Arial, sans-serif; max-width: calc(100vw - 64px); }
+.tavern-hud strong, .tavern-hud span { display: block; }
+.tavern-hud strong { font: 20px Georgia, serif; margin-bottom: 6px; }
+.tavern-exit { position: fixed; left: 16px; bottom: 20px; z-index: 170; padding: 11px 16px; border: 1px solid #c6a374; border-radius: 8px; background: #302219ed; color: #f3d6a6; font-weight: bold; cursor: pointer; }
 

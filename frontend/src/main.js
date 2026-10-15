@@ -1,9 +1,13 @@
 import Phaser from 'phaser';
 import { drawGdolf } from './player-art.js';
 import { createLaviniaTexture } from './lavinia-art.js';
-import { joinParty, updateParty, showLevelComplete, giveVictoryBook, openBook, closeBook } from './completion.js';
+import { joinParty, updateParty, showLevelOneTitle, showLevelComplete, giveVictoryBook, openBook, closeBook } from './completion.js';
 import { showVictoryDialogue, beginChapterDialogue, useChapterPortal, clickChapterPortal, updateChapterPortal } from './chapter-two.js';
 import { showNpcDialogue, hideNpcDialogue } from './dialogue.js';
+import { createGameAudio, unlockAudio, updateGameAudio, playSound } from './audio.js';
+import { createVillageCombat, enrageVillage, updateEnragedVillager, updateVillageCombat, showVillageDeath } from './village-combat.js';
+import { TavernScene } from './tavern-interior.js';
+import { tryEnterTavern, clickTavernDoor, updateTavernDoor } from './tavern-access.js';
 import './style.css';
 import { createVillageGround, createVillageProps, createVillageTextures } from './village.js';
 import { createRushSkill, activateRush, updateRush } from './rush.js';
@@ -135,8 +139,11 @@ class FarmScene extends Phaser.Scene {
     this.updatePlayerHeadHealth();
 
     this.createDialogueBox();
+    createGameAudio(this);
+    createVillageCombat(this);
 
     this.input.on('pointerdown', (pointer) => {
+      if (this.tavernActive) return;
       if (!this.introOverlay.classList.contains('hidden')) return;
       if (this.gameOver) return;
       if (this.npcDialogueOpen || this.chapterDialogueOpen || this.levelTransitioning) return;
@@ -147,6 +154,7 @@ class FarmScene extends Phaser.Scene {
       }
 
       const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+      if (clickTavernDoor(this, worldPoint)) return;
       if (clickChapterPortal(this, worldPoint)) return;
       if (clickBossLoot(this, worldPoint)) return;
       const selectedItem = this.inventory[Number(this.selectedWeapon.replace('slot-', '')) - 1];
@@ -184,6 +192,7 @@ class FarmScene extends Phaser.Scene {
 
     this.input.keyboard.on('keydown', (event) => {
       const key = event.key ? event.key.toLowerCase() : '';
+      if (this.tavernActive || (key === 'e' && event.repeat)) return;
       if (this.gameOver) return;
       if (this.npcDialogueOpen || this.chapterDialogueOpen || this.levelTransitioning) return;
       if (this.bookOpen) {
@@ -199,6 +208,7 @@ class FarmScene extends Phaser.Scene {
       if (key === '4') this.selectWeapon('slot-4');
       if (key === '5') this.selectWeapon('slot-5');
       if (key === 'e') {
+        if (tryEnterTavern(this)) return;
         if (!event.repeat && useChapterPortal(this)) return;
         if (!event.repeat && consumeNearbyBossLoot(this)) return;
         if (this.nearbyABG) {
@@ -241,11 +251,11 @@ class FarmScene extends Phaser.Scene {
 
   createVillagers() {
     const villagerData = [
-      { x: 540, y: 520, name: 'Nina', hair: 0x3d2d25, shirt: 0x7d9c4d, skin: 0xe7c9a1, accent: 0x6d7d9a },
-      { x: 720, y: 540, name: 'Toma', hair: 0x433a33, shirt: 0x8b6f4d, skin: 0xe4c09e, accent: 0x6e8aa8 },
-      { x: 880, y: 430, name: 'Iris', hair: 0x2f2520, shirt: 0x6d87c3, skin: 0xe9d0ad, accent: 0x9b7c5d },
-      { x: 1010, y: 710, name: 'Beni', hair: 0x4c382c, shirt: 0x8f5f4d, skin: 0xebc9a6, accent: 0x5b7f5b },
-      { x: 340, y: 840, name: 'Milo', hair: 0x1a1a1a, shirt: 0x8e6b4b, skin: 0xd8b38d, accent: 0x739a8b },
+      { x: 540, y: 520, name: 'Poe', hair: 0x3d2d25, shirt: 0x7d9c4d, skin: 0xe7c9a1, accent: 0x6d7d9a },
+      { x: 720, y: 540, name: 'Dascalu', hair: 0x433a33, shirt: 0x8b6f4d, skin: 0xe4c09e, accent: 0x6e8aa8 },
+      { x: 880, y: 430, name: 'Horatiu', hair: 0x2f2520, shirt: 0x6d87c3, skin: 0xe9d0ad, accent: 0x9b7c5d },
+      { x: 1010, y: 710, name: 'Mitru', hair: 0x4c382c, shirt: 0x8f5f4d, skin: 0xebc9a6, accent: 0x5b7f5b },
+      { x: 340, y: 840, name: 'Lope', hair: 0x1a1a1a, shirt: 0x8e6b4b, skin: 0xd8b38d, accent: 0x739a8b },
     ];
 
     villagerData.forEach(({ x, y, name, hair, shirt, skin, accent }) => {
@@ -256,12 +266,12 @@ class FarmScene extends Phaser.Scene {
       npc.walkFrames = [key, `${key}-walk-1`, `${key}-walk-2`];
       npc.setDepth(15);
       npc.setCollideWorldBounds(true);
-      npc.setImmovable(true);
+      npc.setImmovable(false);
       npc.body.setSize(16, 10);
       npc.body.setOffset(8, 28);
       this.villagerGroup.add(npc);
 
-      const label = this.add.text(x, y - 22, 'Villiger', {
+      const label = this.add.text(x, y - 22, name, {
         fontFamily: 'Arial',
         fontSize: '12px',
         color: '#f5f5f5',
@@ -424,10 +434,13 @@ class FarmScene extends Phaser.Scene {
 
     const startButton = overlay.querySelector('#start-game-btn');
     startButton.addEventListener('click', () => {
+      if (overlay.classList.contains('hidden')) return;
       const camera = this.cameras.main;
       const originalZoom = camera.zoom;
 
       overlay.classList.add('hidden');
+      unlockAudio(this);
+      showLevelOneTitle(this);
 
       this.time.delayedCall(180, () => {
         this.tweens.add({
@@ -668,6 +681,7 @@ class FarmScene extends Phaser.Scene {
   }
 
   selectWeapon(slotName) {
+    if (this.tavernActive) return;
     if (this.npcDialogueOpen || this.chapterDialogueOpen || this.levelTransitioning) return;
     this.selectedWeapon = slotName;
     if (this.inventory[Number(slotName.replace('slot-', '')) - 1]?.type === 'book') openBook(this);
@@ -995,6 +1009,7 @@ class FarmScene extends Phaser.Scene {
   }
 
   performAttack(targetX, targetY) {
+    playSound(this, 'swing');
     const attackAngle = Phaser.Math.Angle.Between(this.player.x, this.player.y, targetX, targetY);
     this.isAttacking = true;
     this.attackTimer = 0;
@@ -1061,6 +1076,8 @@ class FarmScene extends Phaser.Scene {
       return;
     }
 
+    enrageVillage(this);
+    playSound(this, 'hit');
     villager.health -= amount;
     villager.npc.setTint(0xff7d7d);
     this.time.delayedCall(120, () => villager.npc.clearTint());
@@ -1095,13 +1112,16 @@ class FarmScene extends Phaser.Scene {
 
   killVillager(villager) {
     villager.alive = false;
-    villager.npc.setVisible(false);
+    villager.npc.disableBody(true, true);
+    villager.weapon.setVisible(false);
     villager.label.setVisible(false);
     villager.marker.setVisible(false);
     if (this.missionKillVillagers && !this.bossRoomActive) this.showVillagerObjective();
 
     const allVillagersDead = this.npcs.every((entry) => !entry.alive);
     if (this.missionKillVillagers && allVillagersDead) {
+      this.villageEnraged = false;
+      this.villagerArrows.clear(true, true);
       this.spawnABGNpc();
     }
 
@@ -1357,9 +1377,14 @@ class FarmScene extends Phaser.Scene {
   }
 
   damagePlayer(amount) {
-    if (!this.bossFightActive || this.playerHealth <= 0) {
+    if ((!this.bossFightActive && !this.villageEnraged) || this.gameOver || this.playerHealth <= 0) {
       return;
     }
+    if (!this.bossFightActive) {
+      if (this.time.now < (this.nextVillagerDamageAt || 0)) return;
+      this.nextVillagerDamageAt = this.time.now + 500;
+    }
+    playSound(this, 'hit');
 
     this.playerHealth = Math.max(0, this.playerHealth - amount);
     updatePlayerHealth(this);
@@ -1370,8 +1395,13 @@ class FarmScene extends Phaser.Scene {
 
     if (this.playerHealth <= 0) {
       this.playerHealth = 0;
-      this.showDeathScreen();
-      this.setQuest('Ai fost învins', 'Tete a câștigat lupta.');
+      if (this.bossFightActive) {
+        this.showDeathScreen();
+        this.setQuest('Ai fost învins', 'Tete a câștigat lupta.');
+      } else {
+        showVillageDeath(this);
+        this.setQuest('Ai fost învins', 'Sătenii s-au răsculat. Poți reîncerca.');
+      }
     }
   }
 
@@ -1409,8 +1439,11 @@ class FarmScene extends Phaser.Scene {
     this.updateMinimap();
     updateParty(this);
     updateAnimals(this);
+    updateVillageCombat(this);
+    updateGameAudio(this);
     updateBossLoot(this);
     updateChapterPortal(this);
+    updateTavernDoor(this);
 
     if (!this.player) {
       return;
@@ -1530,6 +1563,9 @@ class FarmScene extends Phaser.Scene {
         const { npc, label, marker, minimapMarker, alive } = villager;
         if (!alive) return;
 
+        if (this.villageEnraged && !this.bossRoomActive && this.currentLevel !== 2) {
+          updateEnragedVillager(this, villager);
+        } else {
         villager.wanderTimer += this.game.loop.delta / 1000;
         if (villager.wanderTimer >= villager.wanderDelay) {
           villager.wanderTimer = 0;
@@ -1551,6 +1587,8 @@ class FarmScene extends Phaser.Scene {
         const vx = (moveX / length) * villager.speed * multiplier;
         const vy = (moveY / length) * villager.speed * multiplier;
         npc.setVelocity(vx, vy);
+
+        }
 
         const walkFrameIndex = Math.floor((this.time.now / 150) % npc.walkFrames.length);
         const nextTexture = npc.walkFrames[walkFrameIndex];
@@ -1709,7 +1747,7 @@ const game = new Phaser.Game({
       gravity: { y: 0 },
     },
   },
-  scene: [FarmScene],
+  scene: [FarmScene, TavernScene],
 });
 
 window.game = game;
