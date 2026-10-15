@@ -815,3 +815,29 @@ canvas {
   .book-page.turning { animation: none; }
 }
 
+.chapter-dialogue {
+  position: fixed; inset: 0; z-index: 800; display: grid; place-items: center;
+  padding: 22px; background: #080c16d9; backdrop-filter: blur(7px);
+  font-family: Arial, sans-serif; color: #ede9df;
+}
+.chapter-dialogue section {
+  display: flex; align-items: center; gap: 32px; width: min(780px, 88vw);
+  padding: 36px; border: 2px solid #c0a474; border-radius: 18px;
+  background: linear-gradient(135deg, #30303b, #151e29); box-shadow: 0 24px 100px #0009;
+  animation: chapter-focus 350ms ease-out;
+}
+.chapter-dialogue img { width: 144px; height: 180px; object-fit: cover; border: 2px solid #c8af7c; border-radius: 12px; }
+.chapter-dialogue small { font-size: 10px; letter-spacing: 0.2em; color: #d5bd8b; }
+.chapter-dialogue h2 { margin: 12px 0 20px; font: 30px Georgia, serif; color: #ffedc7; }
+.chapter-dialogue p { font-size: 17px; line-height: 1.7; }
+.chapter-dialogue button { padding: 13px 20px; margin-top: 12px; border: 1px solid #e4c28d; border-radius: 9px; background: #d6b478; color: #201b17; font-weight: bold; cursor: pointer; }
+.chapter-dialogue button:focus-visible { outline: 3px solid #eee2bb; outline-offset: 4px; }
+@keyframes chapter-focus { from { opacity: 0; transform: translateY(12px) scale(0.96); } to { opacity: 1; transform: none; } }
+@media (max-width: 640px) {
+  .chapter-dialogue section { flex-direction: column; gap: 12px; padding: 22px; max-height: 85vh; overflow-y: auto; }
+  .chapter-dialogue img { width: 80px; height: 90px; }
+  .chapter-dialogue h2 { font-size: 23px; margin: 10px 0; }
+  .chapter-dialogue p { font-size: 15px; }
+}
+@media (prefers-reduced-motion: reduce) { .chapter-dialogue section { animation: none; } }
+

@@ -57,6 +57,7 @@ function consume(scene, item) {
   grantBossReward(scene, item.type);
   const flash = scene.add.circle(x, y + 10, 20, item.type === 'beer' ? 0xffcb65 : 0xffffff, 0.45).setDepth(28);
   scene.tweens.add({ targets: flash, scale: 2.5, alpha: 0, duration: 500, onComplete: () => flash.destroy() });
+  scene.beginNextChapter();
   return true;
 }
 

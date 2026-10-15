@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { drawGdolf } from './player-art.js';
 import { createLaviniaTexture } from './lavinia-art.js';
 import { joinParty, updateParty, showLevelComplete, giveVictoryBook, openBook, closeBook } from './completion.js';
+import { beginChapterDialogue, useChapterPortal, clickChapterPortal, updateChapterPortal } from './chapter-two.js';
 import './style.css';
 import { createVillageGround, createVillageProps, createVillageTextures } from './village.js';
 import { createRushSkill, activateRush, updateRush } from './rush.js';
@@ -135,6 +136,7 @@ class FarmScene extends Phaser.Scene {
     this.createDialogueBox();
 
     this.input.on('pointerdown', (pointer) => {
+      if (this.chapterDialogueOpen || this.levelTransitioning) return;
       if (this.bookOpen) return;
       if (this.couponDialogueStep) return;
       if (this.inventoryUi && !this.inventoryUi.classList.contains('hidden')) {
@@ -142,6 +144,7 @@ class FarmScene extends Phaser.Scene {
       }
 
       const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+      if (clickChapterPortal(this, worldPoint)) return;
       if (clickBossLoot(this, worldPoint)) return;
       const selectedItem = this.inventory[Number(this.selectedWeapon.replace('slot-', '')) - 1];
       if (selectedItem?.type === 'flashlight') {
@@ -187,6 +190,7 @@ class FarmScene extends Phaser.Scene {
 
     this.input.keyboard.on('keydown', (event) => {
       const key = event.key ? event.key.toLowerCase() : '';
+      if (this.chapterDialogueOpen || this.levelTransitioning) return;
       if (this.bookOpen) {
         if (key === 'escape') closeBook(this);
         return;
@@ -200,6 +204,7 @@ class FarmScene extends Phaser.Scene {
       if (key === '4') this.selectWeapon('slot-4');
       if (key === '5') this.selectWeapon('slot-5');
       if (key === 'e') {
+        if (!event.repeat && useChapterPortal(this)) return;
         if (!event.repeat && consumeNearbyBossLoot(this)) return;
         if (this.nearbyABG) {
           this.pickUpABG();
@@ -667,6 +672,7 @@ class FarmScene extends Phaser.Scene {
   }
 
   selectWeapon(slotName) {
+    if (this.chapterDialogueOpen || this.levelTransitioning) return;
     this.selectedWeapon = slotName;
     if (this.inventory[Number(slotName.replace('slot-', '')) - 1]?.type === 'book') openBook(this);
     this.hotbarSlots?.forEach((slot) => {
@@ -1055,7 +1061,7 @@ class FarmScene extends Phaser.Scene {
   }
 
   damageVillager(villager, amount) {
-    if (!villager.alive) {
+    if (!this.hasCoupon || !villager.alive) {
       return;
     }
 
@@ -1321,6 +1327,10 @@ class FarmScene extends Phaser.Scene {
     }
   }
 
+  beginNextChapter() {
+    beginChapterDialogue(this);
+  }
+
   finishBossFight() {
     const dropX = this.boss.x;
     const dropY = this.boss.y + 25;
@@ -1391,6 +1401,7 @@ class FarmScene extends Phaser.Scene {
     updateParty(this);
     updateAnimals(this);
     updateBossLoot(this);
+    updateChapterPortal(this);
 
     if (!this.player) {
       return;
@@ -1410,8 +1421,9 @@ class FarmScene extends Phaser.Scene {
 
     const speed = updateRush(this);
     updateRewards(this);
-    const moveX = this.bookOpen ? 0 : Number(this.cursors.right.isDown) - Number(this.cursors.left.isDown);
-    const moveY = this.bookOpen ? 0 : Number(this.cursors.down.isDown) - Number(this.cursors.up.isDown);
+    const movementLocked = this.bookOpen || this.chapterDialogueOpen || this.levelTransitioning;
+    const moveX = movementLocked ? 0 : Number(this.cursors.right.isDown) - Number(this.cursors.left.isDown);
+    const moveY = movementLocked ? 0 : Number(this.cursors.down.isDown) - Number(this.cursors.up.isDown);
 
     if (moveX !== 0 || moveY !== 0) {
       const length = Math.hypot(moveX, moveY) || 1;
@@ -1573,6 +1585,7 @@ class FarmScene extends Phaser.Scene {
     }
 
     this.goldPickups.forEach((pickup) => {
+      if (this.currentLevel === 2) return;
       if (pickup.collected) {
         return;
       }
@@ -1585,6 +1598,7 @@ class FarmScene extends Phaser.Scene {
 
     this.nearbyPickup = null;
     this.pickupItems.forEach((pickup) => {
+      if (this.currentLevel === 2) return;
       if (pickup.picked) {
         return;
       }

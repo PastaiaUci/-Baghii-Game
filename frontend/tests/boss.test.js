@@ -39,7 +39,7 @@ function setup() {
       if (!this.playerHealth) { this.bossFightActive = false; clearBossAttacks(this); }
     },
     inventory: [{ type: 'empty' }],
-    setQuest() {}, showPrompt() {}, hidePrompt() {},
+    setQuest() {}, showPrompt() {}, hidePrompt() {}, beginNextChapter() {},
     updateInventoryList() {}, updateHotbarState() {}, selectWeapon() {},
   };
   createBoss(scene);

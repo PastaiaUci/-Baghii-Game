@@ -68,7 +68,7 @@ export function hideAnimals(scene) {
 }
 
 export function updateAnimals(scene) {
-  if (scene.bossRoomActive || scene.gameOver) return;
+  if (scene.bossRoomActive || scene.gameOver || scene.currentLevel === 2) return;
   const now = scene.time.now;
   scene.animals.forEach((animal) => {
     const { sprite, shadow } = animal;

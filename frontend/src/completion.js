@@ -33,7 +33,7 @@ export function joinParty(scene, sprite) {
     fontFamily: 'Arial', fontSize: '10px', color: '#bce6cb', stroke: '#17231f', strokeThickness: 3,
   }).setOrigin(0.5).setDepth(30);
   scene.partyShadow = scene.add.ellipse(sprite.x, sprite.y + 27, 38, 12, 0x101019, 0.35).setDepth(3);
-  scene.physics.add.collider(sprite, scene.arenaSolids);
+  scene.partyCollider = scene.physics.add.collider(sprite, scene.arenaSolids);
   const hud = document.createElement('div');
   hud.className = 'party-hud';
   hud.innerHTML = '<img src="/assets/Tete.png" alt="Tete"><div><small>PARTY</small><strong>Tete</strong><span>Te urmează</span></div>';
@@ -46,13 +46,13 @@ export function updateParty(scene) {
   if (!npc?.active) return;
   const start = npc.body.center, goal = scene.player.body.center;
   const distance = Math.hypot(goal.x - start.x, goal.y - start.y);
-  if (scene.bookOpen || distance < 52) {
+  if (scene.bookOpen || scene.chapterDialogueOpen || scene.levelTransitioning || distance < 52) {
     npc.setVelocity(0, 0);
     scene.partyPath = [];
   } else {
     if (scene.time.now >= scene.partyNextPathAt) {
       scene.partyNextPathAt = scene.time.now + 450;
-      const obstacles = scene.arenaSolids.getChildren().map(({ body }) => body).filter(Boolean);
+      const obstacles = (scene.level2Solids || scene.arenaSolids).getChildren().map(({ body }) => body).filter(Boolean);
       scene.partyPath = findPartyPath(start, goal, scene.physics.world.bounds, obstacles);
     }
     while (scene.partyPath.length && Math.hypot(scene.partyPath[0].x - start.x, scene.partyPath[0].y - start.y) < 8) scene.partyPath.shift();
