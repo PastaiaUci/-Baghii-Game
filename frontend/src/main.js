@@ -19,6 +19,7 @@ import { createShop } from './shop.js';
 import { toggleHelmet, createHelmetVisual, absorbArmorDamage, armorPoints } from './armor.js';
 import { clickPartyTete, deployPartyTete } from './party-storage.js';
 import { toggleGear, movementMultiplier, absorbShieldDamage, createGearVisual } from './gear.js';
+import { createSwordMotion, updateSwordMotion } from './sword-motion.js';
 import './style.css';
 import { createVillageGround, createVillageProps, createVillageTextures } from './village.js';
 import { createRushSkill, activateRush, updateRush } from './rush.js';
@@ -121,10 +122,11 @@ class FarmScene extends Phaser.Scene {
 
     this.playerWeapon = this.add.sprite(this.player.x, this.player.y, 'sword');
     this.playerWeapon.setDepth(24);
-    this.playerWeapon.setScale(1.1);
-    this.playerWeapon.setOrigin(0.5, 0.75);
+    this.playerWeapon.setScale(0.78);
+    this.playerWeapon.setOrigin(0.5, 46 / 56);
     this.playerWeapon.setVisible(false);
     this.playerWeapon.setAlpha(1);
+    createSwordMotion(this);
 
     this.createCouponTexture();
     this.playerCoupon = this.add.sprite(this.player.x + 14, this.player.y + 10, 'coupon-item');
@@ -1077,6 +1079,9 @@ class FarmScene extends Phaser.Scene {
   }
 
   performAttack(targetX, targetY) {
+    if (this.isAttacking) return;
+    this.attackVariant = ((this.attackVariant ?? -1) + 1) % 3;
+    this.attackSwingDirection = this.attackVariant === 1 ? -1 : 1;
     playSound(this, 'swing');
     const attackAngle = Phaser.Math.Angle.Between(this.player.x, this.player.y, targetX, targetY);
     this.isAttacking = true;
@@ -1552,30 +1557,7 @@ class FarmScene extends Phaser.Scene {
       }
     }
 
-    if (this.playerWeapon) {
-      const pointerWorld = this.cameras.main.getWorldPoint(this.input.activePointer.x, this.input.activePointer.y);
-      const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, pointerWorld.x, pointerWorld.y);
-      const offsetX = Math.cos(angle) * 14;
-      const offsetY = Math.sin(angle) * 14;
-      this.playerWeapon.x = this.player.x + offsetX;
-      this.playerWeapon.y = this.player.y + offsetY + (this.player.texture.key === 'player-idle-breath' ? -1 : 0);
-
-      if (this.isAttacking) {
-        const swingProgress = Math.min(this.attackTimer / this.attackDuration, 1);
-        const swingAmount = Math.sin(swingProgress * Math.PI) * (Math.PI * 0.7);
-        this.playerWeapon.rotation = this.attackOriginAngle + swingAmount;
-        this.attackTimer += this.game.loop.delta;
-
-        if (swingProgress >= 1) {
-          this.isAttacking = false;
-          this.attackTimer = 0;
-        }
-      } else {
-        this.playerWeapon.rotation = angle + Math.PI / 2;
-      }
-
-      this.playerWeapon.setVisible(getSelectedItem(this)?.type === 'sword');
-    }
+    updateSwordMotion(this);
     updateSwordAura(this);
 
     updatePotionHeld(this);
