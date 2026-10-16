@@ -1,3 +1,5 @@
+import { showDiceDefeat } from './dice-defeat.js';
+
 export function playDiceRound(scene, stake, random = Math.random) {
   if (!Number.isSafeInteger(stake) || stake <= 0) return { error: 'Alege o miză întreagă, mai mare decât zero.' };
   if (scene.gold < stake) return { error: scene.gold === 0 ? 'N-ai niciun gold! Ai venit la barbut cu buzunarele goale? Ha-ha!' : 'N-ai destul gold pentru miza asta. Mai numără o dată bănuții!' };
@@ -104,6 +106,7 @@ export function openDiceGame(scene, person) {
     controls.forEach((control) => { control.disabled = false; });
     rolling = false;
     syncBalance();
+    showDiceDefeat(scene);
   });
   syncBalance();
 }
