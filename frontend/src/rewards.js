@@ -1,4 +1,5 @@
 import { mountSkillButton } from './skills.js';
+import { getSelectedItem } from './inventory.js';
 
 export class AreaSkill {
   constructor() { this.until = 0; this.readyAt = 0; this.nextTick = 0; }
@@ -131,7 +132,7 @@ export function updateRewards(scene) {
       aura.fillStyle(active ? 0x9bca63 : 0xe9d8ff, 0.3).fillCircle(Math.cos(angle) * radius, Math.sin(angle) * radius * 0.45 - 12, 5 + i % 3);
     }
   }
-  const selected = scene.inventory[Number(scene.selectedWeapon.replace('slot-', '')) - 1];
+  const selected = getSelectedItem(scene);
   const held = scene.flashlightHeld;
   held.setVisible(selected?.type === 'flashlight');
   held.setPosition(scene.player.x + 16, scene.player.y + 7).setDepth(scene.player.depth + 0.025);

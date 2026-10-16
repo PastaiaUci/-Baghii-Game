@@ -25,7 +25,7 @@ export function buildControlsHelp(farm) {
   <dl>
     <dt>W A S D</dt><dd>Mișcă-l pe Gdolf.</dd>
     <dt>Click stânga</dt><dd>Atacă folosind sabia echipată. Click direct pe un NPC pentru dialog sau pe un obiect pentru interacțiune.</dd>
-    <dt>1 – 5</dt><dd>Selectează un obiect din hotbar.</dd>
+    <dt>1 – 5</dt><dd>Selectează un obiect din hotbar. Primele 5 sloturi ale inventarului apar în hotbar în aceeași ordine; trage obiectele între sloturi pentru a le organiza.</dd>
     <dt>E</dt><dd>Interacționează în apropiere: Lavinia, dropuri, ușa cârciumii sau portal.</dd>
     <dt>I</dt><dd>Deschide sau închide inventarul.</dd>
     <dt>Esc</dt><dd>Deschide/închide meniul. Când cartea este deschisă, o închide întâi.</dd>

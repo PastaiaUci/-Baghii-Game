@@ -892,3 +892,10 @@ canvas {
 .health-potion-icon { display: inline-grid; place-items: center; position: relative; width: 24px; height: 28px; border: 2px solid #efcbb3; border-radius: 6px 6px 10px 10px; background: linear-gradient(100deg, #fba9a3 0%, #cf3455 35%, #811f3e 100%); color: #fff0dc; font: bold 21px Arial, sans-serif; box-shadow: inset 3px 0 0 #ffffff40; }
 .health-potion-icon::before { content: ''; position: absolute; top: -8px; left: 6px; width: 9px; height: 6px; background: #b78b57; border: 1px solid #f1d294; border-radius: 2px; }
 
+.inventory-help { margin: 4px 0 16px; font: 12px/1.5 Arial, sans-serif; color: #e2d5b5; }
+.inventory-slot.hotbar-linked { border-color: #c5a264; background-color: #b79b541a; }
+.inventory-hotbar-label { position: absolute; top: 3px; left: 4px; font: bold 7px Arial, sans-serif; color: #d8ba7f; letter-spacing: 0.04em; pointer-events: none; }
+.inventory-slot[draggable="true"] { cursor: grab; }
+.inventory-slot.dragging { opacity: 0.4; }
+.inventory-slot.drop-target { outline: 2px solid #f1d18c; outline-offset: 2px; background-color: #dab86630; }
+

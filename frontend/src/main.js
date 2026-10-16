@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { drawGdolf } from './player-art.js';
+import { drawGdolf, getGdolfIdleTexture } from './player-art.js';
 import { createLaviniaTexture } from './lavinia-art.js';
 import { joinParty, updateParty, showLevelOneTitle, showLevelComplete, giveVictoryBook, openBook, closeBook } from './completion.js';
 import { showVictoryDialogue, beginChapterDialogue, useChapterPortal, clickChapterPortal, updateChapterPortal } from './chapter-two.js';
@@ -10,6 +10,7 @@ import { TavernScene } from './tavern-interior.js';
 import { tryEnterTavern, clickTavernDoor, updateTavernDoor } from './tavern-access.js';
 import { installPauseMenu } from './pause-menu.js';
 import { createPotionHeld, updatePotionHeld, useHealthPotion } from './health-potion.js';
+import { getSelectedItem, installInventoryDragging } from './inventory.js';
 import './style.css';
 import { createVillageGround, createVillageProps, createVillageTextures } from './village.js';
 import { createRushSkill, activateRush, updateRush } from './rush.js';
@@ -161,7 +162,7 @@ class FarmScene extends Phaser.Scene {
       if (clickTavernDoor(this, worldPoint)) return;
       if (clickChapterPortal(this, worldPoint)) return;
       if (clickBossLoot(this, worldPoint)) return;
-      const selectedItem = this.inventory[Number(this.selectedWeapon.replace('slot-', '')) - 1];
+      const selectedItem = getSelectedItem(this);
       if (selectedItem?.type === 'health-potion') {
         useHealthPotion(this, Number(this.selectedWeapon.replace('slot-', '')) - 1);
         return;
@@ -180,7 +181,7 @@ class FarmScene extends Phaser.Scene {
         }
       }
 
-      if (this.selectedWeapon === 'slot-1' && this.inventory[0]?.type === 'sword') {
+      if (selectedItem?.type === 'sword') {
         this.performAttack(worldPoint.x, worldPoint.y);
         return;
       }
@@ -584,6 +585,8 @@ class FarmScene extends Phaser.Scene {
     this.hotbarSlots.forEach((slot, index) => {
       const item = this.inventory[index] || { type: 'empty' };
       const itemNode = slot.querySelector('.hotbar-item');
+      slot.title = item.label;
+      slot.classList.toggle('active', this.selectedWeapon === `slot-${index + 1}`);
 
       if (item.type === 'sword') {
         itemNode.className = 'hotbar-item hotbar-sword';
@@ -621,12 +624,15 @@ class FarmScene extends Phaser.Scene {
           <h2>Inventory</h2>
           <span>Apasă I</span>
         </div>
+        <p class="inventory-help">Trage obiectele între sloturi. Primele 5 sloturi formează hotbarul, în aceeași ordine.</p>
         <div class="inventory-list"></div>
       </div>
     `;
 
     this.inventoryList = this.inventoryUi.querySelector('.inventory-list');
+    installInventoryDragging(this);
     this.inventoryList.addEventListener('click', (event) => {
+      if (this.game.loop.now < (this.inventoryClickBlockedUntil || 0)) return;
       const slot = event.target.closest('[data-inventory-index]');
       if (slot && this.inventory[Number(slot.dataset.inventoryIndex)]?.type === 'book') openBook(this);
       if (slot && this.inventory[Number(slot.dataset.inventoryIndex)]?.type === 'health-potion') useHealthPotion(this, Number(slot.dataset.inventoryIndex));
@@ -677,8 +683,9 @@ class FarmScene extends Phaser.Scene {
             : item.type === 'flashlight' ? '<span class="flashlight-icon"></span>' : item.type === 'book' ? '<span class="book-icon">I</span>' : item.type === 'health-potion' ? '<span class="health-potion-icon">+</span>' : '';
 
         return `
-          <div class="inventory-slot ${item.type === 'empty' ? 'empty' : ''}" data-inventory-index="${index}" ${['book', 'health-potion'].includes(item.type) ? 'role="button" tabindex="0"' : ''} title="${item.label}">
+          <div class="inventory-slot ${item.type === 'empty' ? 'empty' : ''} ${index < 5 ? 'hotbar-linked' : ''}" data-inventory-index="${index}" draggable="${item.type !== 'empty'}" ${['book', 'health-potion'].includes(item.type) ? 'role="button" tabindex="0"' : ''} title="${item.label}">
             ${content}
+            ${index < 5 ? '<span class="inventory-hotbar-label">HOTBAR</span>' : ''}
             <span class="slot-number">${index + 1}</span>
           </div>
         `;
@@ -698,6 +705,7 @@ class FarmScene extends Phaser.Scene {
   selectWeapon(slotName) {
     if (this.tavernActive) return;
     if (this.npcDialogueOpen || this.chapterDialogueOpen || this.levelTransitioning) return;
+    if (slotName.startsWith('slot-') && !/^slot-[1-5]$/.test(slotName)) return;
     this.selectedWeapon = slotName;
     updatePotionHeld(this);
     if (this.inventory[Number(slotName.replace('slot-', '')) - 1]?.type === 'book') openBook(this);
@@ -712,6 +720,9 @@ class FarmScene extends Phaser.Scene {
     const idleGraphics = buildFrame(0, 0, 0, 0);
     idleGraphics.generateTexture('player', 32, 40);
     idleGraphics.destroy();
+    const breathingGraphics = drawGdolf(this, 0, 0, 0, 0, true);
+    breathingGraphics.generateTexture('player-idle-breath', 32, 40);
+    breathingGraphics.destroy();
 
     const walkOneGraphics = buildFrame(1, -1, 1, -1);
     walkOneGraphics.generateTexture('player-walk-1', 32, 40);
@@ -917,6 +928,8 @@ class FarmScene extends Phaser.Scene {
     if (!pickup) {
       return;
     }
+    const swordSlot = this.inventory.findIndex(({ type }) => type === 'empty');
+    if (swordSlot < 0) return;
 
     pickup.picked = true;
     pickup.sprite.destroy();
@@ -925,10 +938,10 @@ class FarmScene extends Phaser.Scene {
     }
     this.nearbyPickup = null;
 
-    this.inventory[0] = { type: 'sword', label: 'Sword', key: '1' };
+    this.inventory[swordSlot] = { type: 'sword', label: 'Sword', key: String(swordSlot + 1) };
     this.updateInventoryList();
     this.updateHotbarState();
-    this.selectWeapon('slot-1');
+    this.selectWeapon(`slot-${swordSlot + 1}`);
     this.hidePrompt();
   }
 
@@ -1494,8 +1507,9 @@ class FarmScene extends Phaser.Scene {
       }
     } else {
       this.player.setVelocity(0, 0);
-      if (this.player.texture.key !== 'player') {
-        this.player.setTexture('player');
+      const idleTexture = getGdolfIdleTexture(this.time.now);
+      if (this.player.texture.key !== idleTexture) {
+        this.player.setTexture(idleTexture);
       }
     }
 
@@ -1505,7 +1519,7 @@ class FarmScene extends Phaser.Scene {
       const offsetX = Math.cos(angle) * 14;
       const offsetY = Math.sin(angle) * 14;
       this.playerWeapon.x = this.player.x + offsetX;
-      this.playerWeapon.y = this.player.y + offsetY;
+      this.playerWeapon.y = this.player.y + offsetY + (this.player.texture.key === 'player-idle-breath' ? -1 : 0);
 
       if (this.isAttacking) {
         const swingProgress = Math.min(this.attackTimer / this.attackDuration, 1);
@@ -1521,7 +1535,7 @@ class FarmScene extends Phaser.Scene {
         this.playerWeapon.rotation = angle + Math.PI / 2;
       }
 
-      this.playerWeapon.setVisible(this.inventory[0]?.type === 'sword' && this.selectedWeapon === 'slot-1');
+      this.playerWeapon.setVisible(getSelectedItem(this)?.type === 'sword');
     }
     updateSwordAura(this);
 

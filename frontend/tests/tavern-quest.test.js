@@ -22,21 +22,21 @@ test('all three replies are accepted and failure is evaluated only at the end', 
   assert.equal(answerWakeQuest(q, 'daria'), 'inactive');
 });
 
-test('potion reward preserves the sword slot and heals 10 HP capped at maximum', () => {
+test('potion reward uses an empty slot and heals 10 HP capped at maximum', () => {
   const s = { inventory: [{ type: 'empty' }, { type: 'empty' }], updateInventoryList() {}, updateHotbarState() {}, playerHealth: 12, maxPlayerHealth: 30 };
   assert.equal(grantHealthPotion(s), true);
-  assert.equal(s.inventory[0].type, 'empty');
-  assert.equal(s.inventory[1].type, 'health-potion');
-  assert.equal(applyHealthPotion(s, 1), 10);
+  assert.equal(s.inventory[0].type, 'health-potion');
+  assert.equal(s.inventory[1].type, 'empty');
+  assert.equal(applyHealthPotion(s, 0), 10);
   assert.equal(s.playerHealth, 22);
-  assert.equal(applyHealthPotion(s, 1), 0);
+  assert.equal(applyHealthPotion(s, 0), 0);
   grantHealthPotion(s);
   s.playerHealth = 27;
-  assert.equal(applyHealthPotion(s, 1), 3);
+  assert.equal(applyHealthPotion(s, 0), 3);
   assert.equal(s.playerHealth, 30);
   grantHealthPotion(s);
-  assert.equal(applyHealthPotion(s, 1), 0);
-  assert.equal(s.inventory[1].type, 'health-potion');
+  assert.equal(applyHealthPotion(s, 0), 0);
+  assert.equal(s.inventory[0].type, 'health-potion');
 });
 
 function chain() {

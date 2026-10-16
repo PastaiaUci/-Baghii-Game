@@ -1,7 +1,7 @@
 // Keep the original 32×40 frame and foot position so collision and equipment stay aligned.
-export function drawGdolf(scene, leftStep, rightStep, leftArm, rightArm) {
+export function drawGdolf(scene, leftStep, rightStep, leftArm, rightArm, breathing = false) {
   const g = scene.make.graphics();
-  const bob = leftStep ? 1 : 0;
+  const bob = leftStep ? 1 : breathing ? -1 : 0;
   // Boots and trousers: alternating knees give the walking frames a clear gait.
   g.fillStyle(0x202b3c);
   g.fillRect(9 + leftStep, 27, 6, 10);
@@ -64,4 +64,8 @@ export function drawGdolf(scene, leftStep, rightStep, leftArm, rightArm) {
   g.fillStyle(0x642d3b).fillRect(9, 20 + bob, 14, 3).fillRect(20, 23 + bob, 3, 4);
   g.fillStyle(0xb65c5c).fillRect(10, 20 + bob, 11, 1).fillRect(21, 23 + bob, 1, 3);
   return g;
+}
+
+export function getGdolfIdleTexture(now) {
+  return Math.sin(now / 400) > 0.25 ? 'player-idle-breath' : 'player';
 }

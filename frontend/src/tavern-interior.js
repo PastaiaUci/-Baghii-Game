@@ -3,6 +3,7 @@ import { showNpcDialogue, hideNpcDialogue } from './dialogue.js';
 import { playSound } from './audio.js';
 import { shiftVillageTimers } from './tavern-access.js';
 import { getTavernQuest, updateTavernQuestHint, talkToTavernNpc, startSnikuWalk, addSnikuBeer } from './tavern-quest.js';
+import { getGdolfIdleTexture } from './player-art.js';
 
 export class TavernScene extends Phaser.Scene {
   constructor() { super('TavernScene'); }
@@ -175,7 +176,7 @@ export class TavernScene extends Phaser.Scene {
     const dy = Number(this.keys.S.isDown) - Number(this.keys.W.isDown);
     const length = Math.hypot(dx, dy) || 1;
     this.player.setVelocity(dx / length * 180, dy / length * 180);
-    this.player.setTexture(dx || dy ? this.farm.player.walkFrames[Math.floor(this.time.now / 140) % 3] : 'player');
+    this.player.setTexture(dx || dy ? this.farm.player.walkFrames[Math.floor(this.time.now / 140) % 3] : getGdolfIdleTexture(this.time.now));
     this.player.setDepth(10 + (this.player.y + 18) / 100);
     if ((dx || dy) && this.time.now >= this.nextStepAt) { this.nextStepAt = this.time.now + 290; playSound(this.farm, 'step'); }
     this.exitLabel.setText(Math.hypot(this.player.x - 480, this.player.y - 550) < 80 ? 'E · Înapoi în sat' : 'IEȘIRE · SAT');

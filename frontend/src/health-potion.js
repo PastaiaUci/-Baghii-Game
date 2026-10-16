@@ -1,4 +1,5 @@
 import { updatePlayerHealth } from './boss.js';
+import { getSelectedItem } from './inventory.js';
 
 export function createPotionHeld(scene) {
   const g = scene.make.graphics();
@@ -15,14 +16,13 @@ export function createPotionHeld(scene) {
 
 export function updatePotionHeld(scene) {
   if (!scene.potionHeld) return;
-  const item = scene.inventory[Number(scene.selectedWeapon.replace('slot-', '')) - 1];
+  const item = getSelectedItem(scene);
   scene.potionHeld.setVisible(item?.type === 'health-potion' && !scene.gameOver && !scene.tavernActive);
   scene.potionHeld.setPosition(scene.player.x + 15, scene.player.y + 8).setDepth(scene.player.depth + 0.03);
 }
 
 export function grantHealthPotion(scene) {
-  // Slot 1 is reserved for the sword, which can still be picked up later.
-  const slot = scene.inventory.findIndex((item, index) => index > 0 && item.type === 'empty');
+  const slot = scene.inventory.findIndex((item) => item.type === 'empty');
   if (slot < 0) return false;
   scene.inventory[slot] = { type: 'health-potion', label: 'Poțiune de viață · +10 HP · Click pentru a consuma', key: String(slot + 1) };
   scene.updateInventoryList(); scene.updateHotbarState();

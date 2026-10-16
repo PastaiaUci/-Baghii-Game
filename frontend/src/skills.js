@@ -1,9 +1,11 @@
+import { getSelectedItem } from './inventory.js';
+
 export function mountSkillButton(scene, button) {
   (scene.skillbarSlots || document.body).appendChild(button);
 }
 
 export function hasSwordInHand(scene) {
-  return scene.selectedWeapon === 'slot-1' && scene.inventory[0]?.type === 'sword';
+  return getSelectedItem(scene)?.type === 'sword';
 }
 
 export function swordAuraBonus(scene, target) {
