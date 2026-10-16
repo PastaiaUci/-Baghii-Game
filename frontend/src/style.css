@@ -893,6 +893,13 @@ canvas {
 .health-potion-icon::before { content: ''; position: absolute; top: -8px; left: 6px; width: 9px; height: 6px; background: #b78b57; border: 1px solid #f1d294; border-radius: 2px; }
 
 .inventory-help { margin: 4px 0 16px; font: 12px/1.5 Arial, sans-serif; color: #e2d5b5; }
+.inventory-close { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid #b9955766; border-radius: 6px; background: #30281e; color: #f3d6a6; font: 26px/1 Arial, sans-serif; cursor: pointer; }
+.inventory-close:hover { background: #55412b; border-color: #e1bd76; }
+.inventory-toggle { position: fixed; right: 16px; bottom: 64px; z-index: 160; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 9px 12px; border: 1px solid #bc9555; border-radius: 10px; background: linear-gradient(#383022, #1b1a15); color: #efd8a8; box-shadow: 0 4px 15px #0006; cursor: pointer; font: 11px Arial, sans-serif; }
+.inventory-toggle svg { width: 42px; height: 35px; }
+.inventory-toggle small { margin-left: 4px; color: #bfa577; }
+.inventory-toggle:hover { border-color: #ffe0a0; background: #4b3b26; }
+.inventory-toggle:focus-visible, .inventory-close:focus-visible { outline: 2px solid #ffe0a0; outline-offset: 3px; }
 .inventory-panel { max-height: 92vh; overflow-y: auto; }
 .equipment-panel { display: grid; grid-template-columns: 72px minmax(90px, 1fr) 72px; gap: 12px; padding: 14px; margin-bottom: 16px; border: 1px solid #a7864d66; border-radius: 10px; background: radial-gradient(ellipse at 50% 65%, #61503955, #121718 70%); }
 .equipment-column { display: grid; gap: 8px; }

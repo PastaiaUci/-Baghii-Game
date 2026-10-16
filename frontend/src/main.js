@@ -624,7 +624,7 @@ class FarmScene extends Phaser.Scene {
       <div class="inventory-panel">
         <div class="inventory-header">
           <h2>Inventory</h2>
-          <span>Apasă I</span>
+          <button class="inventory-close" type="button" aria-label="Închide inventarul" title="Închide (I / Esc)">×</button>
         </div>
         ${equipmentPanelMarkup()}
         <p class="inventory-help">Trage obiectele între sloturi. Primele 5 sloturi formează hotbarul, în aceeași ordine.</p>
@@ -633,6 +633,7 @@ class FarmScene extends Phaser.Scene {
     `;
 
     this.inventoryList = this.inventoryUi.querySelector('.inventory-list');
+    this.inventoryUi.querySelector('.inventory-close').addEventListener('click', () => this.toggleInventory(false));
     installInventoryDragging(this);
     this.inventoryList.addEventListener('click', (event) => {
       if (this.game.loop.now < (this.inventoryClickBlockedUntil || 0)) return;
@@ -660,6 +661,19 @@ class FarmScene extends Phaser.Scene {
     });
 
     document.body.appendChild(this.inventoryUi);
+    this.inventoryButton = document.createElement('button');
+    this.inventoryButton.className = 'inventory-toggle';
+    this.inventoryButton.type = 'button';
+    this.inventoryButton.title = 'Inventar (I)';
+    this.inventoryButton.setAttribute('aria-label', 'Deschide inventarul');
+    this.inventoryButton.setAttribute('aria-expanded', 'false');
+    this.inventoryButton.innerHTML = '<svg viewBox="0 0 48 40" aria-hidden="true"><path d="M5 18V12Q5 4 13 4H35Q43 4 43 12V18Z" fill="#a87537"/><path d="M5 18H43V35H5Z" fill="#704821"/><path d="M5 16H43V21H5ZM10 5V35M37 5V35" fill="#d2a850" stroke="#d2a850" stroke-width="3"/><rect x="20" y="16" width="8" height="11" rx="2" fill="#f6d27c"/><path d="M24 20V24" stroke="#533b20" stroke-width="2"/></svg><span>Inventar <small>I</small></span>';
+    this.inventoryButton.addEventListener('click', () => {
+      if (this.menuOpen || this.tavernActive || this.gameOver || this.npcDialogueOpen || this.chapterDialogueOpen || this.levelTransitioning || this.bookOpen) return;
+      this.toggleInventory();
+    });
+    document.body.appendChild(this.inventoryButton);
+    this.events.once('shutdown', () => { this.inventoryButton.remove(); this.inventoryUi.remove(); });
     this.updateInventoryList();
   }
 
@@ -703,6 +717,7 @@ class FarmScene extends Phaser.Scene {
 
     const shouldOpen = typeof forceState === 'boolean' ? forceState : this.inventoryUi.classList.contains('hidden');
     this.inventoryUi.classList.toggle('hidden', !shouldOpen);
+    this.inventoryButton?.setAttribute('aria-expanded', String(shouldOpen));
     if (shouldOpen) updateEquipmentPanel(this);
   }
 
