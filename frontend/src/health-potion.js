@@ -1,5 +1,6 @@
 import { updatePlayerHealth } from './boss.js';
 import { getSelectedItem } from './inventory.js';
+import { addConsumable, consumeOne } from './consumables.js';
 
 export function createPotionHeld(scene) {
   const g = scene.make.graphics();
@@ -22,9 +23,7 @@ export function updatePotionHeld(scene) {
 }
 
 export function grantHealthPotion(scene) {
-  const slot = scene.inventory.findIndex((item) => item.type === 'empty');
-  if (slot < 0) return false;
-  scene.inventory[slot] = { type: 'health-potion', label: 'Poțiune de viață · +10 HP · Click pentru a consuma', key: String(slot + 1) };
+  if (!addConsumable(scene, 'health-potion')) return false;
   scene.updateInventoryList(); scene.updateHotbarState();
   return true;
 }
@@ -33,7 +32,7 @@ export function applyHealthPotion(scene, slot) {
   if (scene.inventory[slot]?.type !== 'health-potion' || scene.playerHealth >= scene.maxPlayerHealth || scene.playerHealth <= 0) return 0;
   const before = scene.playerHealth;
   scene.playerHealth = Math.min(scene.maxPlayerHealth, before + 10);
-  scene.inventory[slot] = { type: 'empty', label: `Slot ${slot + 1}`, key: String(slot + 1) };
+  consumeOne(scene, slot, 'health-potion');
   return scene.playerHealth - before;
 }
 
@@ -46,7 +45,7 @@ export function useHealthPotion(scene, slot) {
   }).setOrigin(0.5).setDepth(50);
   scene.tweens.add({ targets: text, y: text.y - 20, alpha: 0, duration: 950, onComplete: () => text.destroy() });
   if (!restored) return false;
-  scene.potionHeld?.setVisible(false);
+  updatePotionHeld(scene);
   scene.updateInventoryList(); scene.updateHotbarState();
   scene.updatePlayerHeadHealth(); updatePlayerHealth(scene); scene.updateHealthHud();
   return true;

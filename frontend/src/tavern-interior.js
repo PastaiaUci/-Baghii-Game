@@ -5,7 +5,9 @@ import { shiftVillageTimers } from './tavern-access.js';
 import { getTavernQuest, updateTavernQuestHint, talkToTavernNpc, startSnikuWalk, addSnikuBeer } from './tavern-quest.js';
 import { getGdolfIdleTexture } from './player-art.js';
 import { createHelmetVisual } from './armor.js';
-import { createGearVisual, movementMultiplier } from './gear.js';
+import { createGearVisual } from './gear.js';
+import { derivedStats } from './character-stats.js';
+import { createTavernMinimap } from './quest-minimap.js';
 
 export class TavernScene extends Phaser.Scene {
   constructor() { super('TavernScene'); }
@@ -36,6 +38,7 @@ export class TavernScene extends Phaser.Scene {
     this.keys = this.input.keyboard.addKeys('W,A,S,D,E,ESC');
     this.createVisitors();
     this.createDialogue();
+    createTavernMinimap(this);
     createHelmetVisual(this, this.farm);
     createGearVisual(this, this.farm);
     this.hint = document.createElement('div');
@@ -53,8 +56,15 @@ export class TavernScene extends Phaser.Scene {
     this.exitButton.addEventListener('click', () => { if (!this.npcDialogueOpen) this.leave(); });
     document.body.appendChild(this.exitButton);
     this.input.keyboard.on('keydown-E', (event) => {
-      if (!event.repeat && !this.npcDialogueOpen && Math.hypot(this.player.x - 480, this.player.y - 550) < 80) this.leave();
+      if (event.repeat || this.npcDialogueOpen || this.farm.bookOpen || this.farm.menuOpen) return;
+      if (!this.farm.inventoryUi.classList.contains('hidden')) { this.farm.toggleInventory(false); return; }
+      if (Math.hypot(this.player.x - 480, this.player.y - 550) < 80) { this.leave(); return; }
+      const visitor = Object.values(this.tavernVisitors).filter(({ group }) => Math.hypot(this.player.x - group.x, this.player.y - group.y) < 70)
+        .sort((a, b) => Math.hypot(this.player.x - a.group.x, this.player.y - a.group.y) - Math.hypot(this.player.x - b.group.x, this.player.y - b.group.y))[0];
+      if (visitor) { visitor.talk(); return; }
+      this.farm.toggleInventory();
     });
+    this.input.keyboard.on('keydown-I', (event) => { if (!event.repeat && !this.npcDialogueOpen && !this.farm.bookOpen && !this.farm.menuOpen) this.farm.toggleInventory(); });
     this.events.once('shutdown', () => {
       this.dialogBox.remove(); this.hint.remove(); this.exitButton.remove();
       this.hiddenHud.forEach(({ element, visibility }) => { element.style.visibility = visibility; });
@@ -155,6 +165,7 @@ export class TavernScene extends Phaser.Scene {
       group.add(marker);
       if (name === 'Sniku' && ['ready', 'completed'].includes(quest.status)) addSnikuBeer(this);
       const talk = () => { if (!this.npcDialogueOpen && !this.leaving) talkToTavernNpc(this, name, line); };
+      this.tavernVisitors[name].talk = talk;
       sprite.on('pointerdown', talk); label.on('pointerdown', talk);
       marker.on('pointerdown', talk);
     });
@@ -181,10 +192,12 @@ export class TavernScene extends Phaser.Scene {
 
   update() {
     if (this.leaving || this.npcDialogueOpen) return;
+    if (!this.farm.inventoryUi.classList.contains('hidden')) { this.player.setVelocity(0, 0); return; }
     const dx = Number(this.keys.D.isDown) - Number(this.keys.A.isDown);
     const dy = Number(this.keys.S.isDown) - Number(this.keys.W.isDown);
     const length = Math.hypot(dx, dy) || 1;
-    this.player.setVelocity(dx / length * 180 * movementMultiplier(this.farm), dy / length * 180 * movementMultiplier(this.farm));
+    const speed = derivedStats(this.farm).walkSpeed;
+    this.player.setVelocity(dx / length * speed, dy / length * speed);
     this.player.setTexture(dx || dy ? this.farm.player.walkFrames[Math.floor(this.time.now / 140) % 3] : getGdolfIdleTexture(this.time.now));
     this.player.setDepth(10 + (this.player.y + 18) / 100);
     if ((dx || dy) && this.time.now >= this.nextStepAt) { this.nextStepAt = this.time.now + 290; playSound(this.farm, 'step'); }

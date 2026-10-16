@@ -893,11 +893,54 @@ canvas {
 .health-potion-icon::before { content: ''; position: absolute; top: -8px; left: 6px; width: 9px; height: 6px; background: #b78b57; border: 1px solid #f1d294; border-radius: 2px; }
 
 .inventory-help { margin: 4px 0 16px; font: 12px/1.5 Arial, sans-serif; color: #e2d5b5; }
+.stats-toggle { position: fixed; right: 112px; bottom: 64px; z-index: 160; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 9px 12px; min-width: 73px; border: 1px solid #bc9555; border-radius: 10px; background: linear-gradient(#383022, #1b1a15); color: #efd8a8; box-shadow: 0 4px 15px #0006; cursor: pointer; font: 11px Arial, sans-serif; }
+.stats-toggle-symbol { display: grid; place-items: center; height: 35px; color: #e3c589; font: 31px Georgia, serif; }
+.stats-toggle:hover { border-color: #ffe0a0; background: #4b3b26; }
+.stats-overlay { position: fixed; inset: 0; display: grid; place-items: center; background: #080c11b8; backdrop-filter: blur(5px); z-index: 230; }
+.stats-panel { width: min(720px, 94vw); max-height: 90vh; overflow-y: auto; box-sizing: border-box; padding: 24px; border: 1px solid #ba9c64; border-radius: 14px; background: linear-gradient(135deg, #283334, #141d23 70%); color: #f4e5c5; box-shadow: 0 20px 60px #0009; }
+.stats-panel header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.stats-panel header small { color: #c4ae80; font: 10px Arial, sans-serif; letter-spacing: 0.15em; }
+.stats-panel h2 { margin: 6px 0 0; font: 28px Georgia, serif; }
+.stats-close { width: 34px; height: 34px; border: 1px solid #a58e63; border-radius: 6px; background: #302a21; color: #f3d9a9; font: 25px Arial, sans-serif; cursor: pointer; }
+.stats-body { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 24px; }
+.stats-avatar { display: flex; flex-direction: column; align-items: center; border: 1px solid #b59e6744; border-radius: 9px; background: radial-gradient(ellipse at center, #a6936544, #101b22); padding: 8px; }
+.stats-avatar canvas { width: 160px; max-width: 100%; image-rendering: pixelated; }
+.stats-avatar > strong { font: 20px Georgia, serif; }
+.stats-points { color: #e9cd8a; font: 11px Arial, sans-serif; text-align: center; }
+.stats-row { display: grid; grid-template-columns: 1fr 36px 30px; gap: 8px; align-items: center; padding: 12px 0; border-bottom: 1px solid #91a4a32a; }
+.stats-row strong { font: 15px Georgia, serif; }
+.stats-row small { display: block; margin-top: 5px; color: #aebab6; font: 10px/1.5 Arial, sans-serif; }
+.stats-row > span { text-align: center; color: #f8d98a; font: bold 19px Arial, sans-serif; }
+.stats-row button { height: 28px; border: 1px solid #bba575; border-radius: 4px; background: #80683e; color: #fff3cd; font-size: 20px; cursor: pointer; }
+.stats-row button:disabled { opacity: 0.25; cursor: default; }
+.stats-effects { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 22px; }
+.stats-effects > span { padding: 10px; border: 1px solid #9fb1ac33; border-radius: 6px; background: #0c182259; color: #a9b8b8; font: 10px Arial, sans-serif; }
+.stats-effects b { display: block; margin-top: 5px; color: #ede1c0; font-size: 14px; }
+.stats-note { margin-bottom: 0; color: #a2afa9; font: 11px/1.6 Arial, sans-serif; }
+.stats-panel button:focus-visible, .stats-toggle:focus-visible { outline: 2px solid #ffe0a0; outline-offset: 3px; }
+@media (max-width: 520px) { .stats-body { grid-template-columns: 1fr; gap: 12px; } .stats-avatar canvas { height: 115px; width: 92px; } .stats-effects { grid-template-columns: repeat(2, 1fr); } .stats-panel { padding: 18px; } }
+.minimap-surface { height: calc(100% - 35px); }
+.minimap-legend { margin-top: 5px; text-align: center; font: 9px Arial, sans-serif; color: #decba3; }
+.minimap-player { z-index: 3; }
+.minimap-quest { position: absolute; display: grid; place-items: center; transform: translate(-50%, -50%); width: 16px; height: 16px; border-radius: 4px; z-index: 4; background: #16201edb; box-shadow: 0 1px 4px #0008; font: bold 13px/1 Arial, sans-serif; cursor: help; }
+.minimap-quest-available { color: #ffe08a; border: 1px solid #ba9755; }
+.minimap-quest-waiting { color: #c0b2de; border: 1px solid #8979a1; }
+.minimap-quest-ready, .minimap-quest-objective { color: #fff0aa; border: 1px solid #e4c673; animation: quest-marker-pulse 1.6s ease-in-out infinite; }
+.minimap-surface[data-theme="alpine"] { background: linear-gradient(180deg, #667e96 20%, #b3cbd0 22%, #7f999c); }
+.minimap-surface[data-theme="boss"] { background: linear-gradient(135deg, #62454c, #382f3c); }
+.minimap-surface[data-theme="tavern"] { background: linear-gradient(135deg, #80613e, #49362c); }
+@keyframes quest-marker-pulse { 50% { box-shadow: 0 0 9px #ffe18a88; } }
+@media (prefers-reduced-motion: reduce) { .minimap-quest { animation: none; } }
+.medallion-icon { display: block; width: 80%; height: 80%; object-fit: contain; border-radius: 3px; }
+.revival-beer-icon { font-size: 26px; line-height: 1; }
+.item-quantity { position: absolute; right: 4px; bottom: 3px; padding: 1px 3px; border-radius: 3px; background: #342913dd; color: #ffe5a0; font: bold 11px Arial, sans-serif; }
+.test-checkpoint-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
 .shield-icon { display: inline-block; position: relative; width: 25px; height: 31px; background: linear-gradient(110deg, #b1c2cf, #4a6277); border: 2px solid #c4ac71; clip-path: polygon(0 0, 100% 0, 90% 70%, 50% 100%, 10% 70%); }
 .shield-icon::after { content: ''; position: absolute; left: 10px; top: 4px; width: 4px; height: 20px; background: #e4d4a7; }
 .boots-icon { display: inline-block; position: relative; width: 32px; height: 26px; background: linear-gradient(100deg, #a1d7c4, #3c787e); clip-path: polygon(4% 0, 37% 0, 37% 62%, 47% 69%, 47% 100%, 0 100%, 0 67%, 4% 62%, 55% 0, 88% 0, 88% 62%, 100% 69%, 100% 100%, 52% 100%, 52% 67%, 55% 62%); }
 .shop-product + .shop-product { margin-top: 15px; }
 .shop-product-art .boots-icon, .shop-product-art .shield-icon { transform: scale(2); }
+.shop-product-art .health-potion-icon, .shop-product-art .revival-beer-icon { transform: scale(1.7); }
 .tete-item-icon { display: block; width: 80%; height: 80%; object-fit: cover; border-radius: 5px; border: 1px solid #c4a975; }
 .party-hud[hidden] { display: none; }
 .party-actions { margin: 12px 0; }

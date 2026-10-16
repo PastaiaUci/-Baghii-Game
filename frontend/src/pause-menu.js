@@ -8,6 +8,7 @@ export function shiftMenuTimers(scene, elapsed) {
   shift(scene.deathBreath, ['until', 'readyAt', 'nextTick']);
   shift(scene, ['flashlightReadyAt', 'slowVisualUntil', 'nextVillagerDamageAt']);
   scene.npcs?.forEach(({ npc }) => shift(npc, ['slowUntil']));
+  scene.metinMobs?.forEach(({ sprite }) => shift(sprite, ['slowUntil']));
   shift(scene.boss, ['slowUntil']);
   if (scene.bossFightActive) {
     shift(scene, ['nextBeerAt', 'nextPuddleAt', 'nextPuddleDamageAt']);
@@ -28,9 +29,10 @@ export function buildControlsHelp(farm) {
     ${farm.equippedShield || farm.inventory?.some(({ type }) => type === 'shield') ? '<dt>Ține click dreapta</dt><dd>Blochează cu scutul echipat. Absoarbe maximum 50 damage în total; la 0 rezistență se sparge și dispare.</dd>' : ''}
     ${farm.equippedBoots || farm.inventory?.some(({ type }) => type === 'wind-boots') ? '<dt>Papuci de Vânt</dt><dd>+25% viteză cât sunt echipați. Click în inventar pentru echipare sau pe slotul de cizme pentru dezechipare.</dd>' : ''}
     <dt>1 – 5</dt><dd>Selectează un obiect din hotbar. Primele 5 sloturi ale inventarului apar în hotbar în aceeași ordine; trage obiectele între sloturi pentru a le organiza.</dd>
-    <dt>E</dt><dd>Interacționează în apropiere: Lavinia, dropuri, ușa cârciumii sau portal.</dd>
+    <dt>E</dt><dd>Interacționează cu NPC-uri și obiecte apropiate. Deschide cartea selectată. Dacă nu există o interacțiune, deschide inventarul; dacă inventarul este deschis, îl închide.</dd>
     <dt>I</dt><dd>Deschide sau închide inventarul.</dd>
-    <dt>Esc</dt><dd>Închide cartea sau inventarul dacă sunt deschise. Altfel, deschide/închide meniul.</dd>
+    <dt>Statusuri</dt><dd>Butonul din stânga cufărului arată atributele lui Gdolf și efectele lor. Punctele disponibile pot fi distribuite cu +.</dd>
+    <dt>Esc</dt><dd>Închide statusurile, cartea sau inventarul dacă sunt deschise. Altfel, deschide/închide meniul.</dd>
   </dl>
   <h3>Abilități</h3>
   <dl>
@@ -45,6 +47,7 @@ export function buildControlsHelp(farm) {
     <li>Cupon Keeper cere 100 de bănuți. Sătenii sunt imuni până cumperi cuponul; prima lovitură îi înfurie pe toți.</li>
     <li>Dialogurile se continuă cu butonul „Continuă”. Jocul stă pe loc cât citești.</li>
     <li>Cartea se deschide cu E când este selectată în hotbar sau prin click în inventar. Tastele 1–5 doar selectează obiectul. Schimbă paginile cu butoanele Înapoi/Înainte.</li>
+    ${farm.currentLevel === 2 ? '<li>Pietrele cu aură au niveluri 1–3. Cheamă mobi când le lovești; spargerea lor elimină toți mobii chemați de acea piatră. Lasă gold și au 50% șansă de medalion. Reapar după 25–35 secunde.</li><li>Tete aruncă bere la inamici. La 0/25 HP revine în inventar. Mobii învinși direct au 20% șansă să lase bere: folosește-o din inventar pentru a-i reface 3 HP și a-l putea chema din nou.</li>' : ''}
     ${farm.tavernQuest?.status === 'completed' || farm.inventory?.some(({ type }) => type === 'health-potion') ? '<li>Poțiunea de viață reface 10 HP. Click pe ea în inventar sau selecteaz-o în hotbar și dă click în joc. La viață maximă nu se consumă.</li>' : ''}
     <li>La cârciumă: E lângă ușă sau click pe ușă pentru intrare. E lângă ieșire sau „Înapoi în sat” pentru întoarcere.</li>
     <li>După Tete poți consuma doar unul dintre cele două dropuri. Tete intră în party, iar portalul duce în Nivelul 2.</li>
@@ -119,6 +122,7 @@ export function installPauseMenu(farm) {
       if (!overlay && farm.bookOpen) return;
       event.preventDefault(); event.stopImmediatePropagation();
       if (event.repeat) return;
+      if (!overlay && farm.statsOpen) { farm.closeStats(); return; }
       if (!overlay && farm.inventoryUi && !farm.inventoryUi.classList.contains('hidden')) {
         farm.toggleInventory(false);
         return;

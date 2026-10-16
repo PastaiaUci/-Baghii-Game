@@ -1,3 +1,7 @@
+import { createAlpineMap, createAlpineGold } from './alpine-map.js';
+import { createEmperorLuis } from './emperor-luis.js';
+import { createMetinStones } from './metin-stones.js';
+
 export function showVictoryDialogue(scene) {
   scene.hidePrompt();
   scene.chapterDialogueOpen = true;
@@ -115,38 +119,10 @@ export function enterLevelTwo(scene) {
   const width = 1600, height = 1200;
   scene.physics.world.setBounds(32, 44, width - 64, height - 76);
   scene.cameras.main.setBounds(0, 0, width, height);
-  const g = scene.add.graphics().setDepth(0);
-  g.fillStyle(0xc7d8d4).fillRect(0, 0, width, height);
-  // A new alpine arrival map; the next chapter begins with the search for Mr. Grain.
-  for (let i = 0; i < 8; i += 1) {
-    const x = i * 240 - 80;
-    g.fillStyle(i % 2 ? 0x819eaa : 0x93adb4).fillTriangle(x, 250, x + 300, 250, x + 150, 20);
-    g.fillStyle(0xf0f3e9).fillTriangle(x + 100, 95, x + 200, 95, x + 150, 20);
-  }
-  g.fillStyle(0x8faaa0).fillRoundedRect(110, 300, 1380, 790, 80);
-  g.fillStyle(0xc2ac89).fillRoundedRect(100, 580, 1300, 70, 16);
-  g.fillRoundedRect(770, 400, 65, 650, 14);
-  scene.level2Solids = scene.physics.add.staticGroup();
-  const solid = (x, y, w, h) => scene.level2Solids.add(scene.add.zone(x, y, w, h));
-  [[800, 22, 1600, 44], [800, 1184, 1600, 32], [16, 600, 32, 1200], [1584, 600, 32, 1200]].forEach(([x, y, w, h]) => {
-    g.fillStyle(0x516d6c).fillRect(x - w / 2, y - h / 2, w, h);
-    solid(x, y, w, h);
-  });
-  [[420, 440], [650, 830], [1060, 440], [1290, 810]].forEach(([x, y]) => {
-    g.fillStyle(0x4d6570).fillRect(x - 65, y - 50, 130, 100);
-    g.fillStyle(0xb66f55).fillRect(x - 60, y - 45, 120, 90);
-    g.fillStyle(0x463e44).fillTriangle(x - 80, y - 40, x + 80, y - 40, x, y - 110);
-    g.fillStyle(0xf2f0dd).fillTriangle(x - 65, y - 50, x + 65, y - 50, x, y - 110);
-    g.fillStyle(0x543f35).fillRect(x - 12, y + 7, 24, 38);
-    g.fillStyle(0xf2d992).fillRect(x - 43, y - 20, 22, 24).fillRect(x + 21, y - 20, 22, 24);
-    solid(x, y + 5, 120, 80);
-  });
-  [[190, 380], [330, 940], [510, 1030], [960, 980], [1430, 400], [1380, 1030]].forEach(([x, y]) => {
-    g.fillStyle(0x574b3d).fillRect(x - 6, y - 22, 12, 34);
-    g.fillStyle(0x385d51).fillTriangle(x - 42, y - 10, x + 42, y - 10, x, y - 120);
-    g.fillStyle(0xd7e6df).fillTriangle(x - 23, y - 60, x + 23, y - 60, x, y - 120);
-    solid(x, y + 2, 16, 18);
-  });
+  createAlpineMap(scene);
+  createAlpineGold(scene);
+  createEmperorLuis(scene);
+  createMetinStones(scene);
   scene.physics.add.collider(scene.player, scene.level2Solids);
   if (scene.partyTete) scene.partyCollider = scene.physics.add.collider(scene.partyTete, scene.level2Solids);
   scene.player.setPosition(210, 600).setVelocity(0, 0);

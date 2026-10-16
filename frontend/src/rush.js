@@ -1,4 +1,5 @@
 import { mountSkillButton } from './skills.js';
+import { derivedStats } from './character-stats.js';
 
 export class RushSkill {
   constructor() {
@@ -50,13 +51,16 @@ export function activateRush(scene) {
 export function updateRush(scene) {
   const state = scene.rushSkill.state(scene.time.now);
   const active = state.active && !scene.gameOver;
+  const stats = derivedStats(scene);
+  const speed = 180 * stats.movement * (active ? 1 + stats.rushBonus : 1);
+  scene.rushButton.title = `Q · Iureș: +${Math.round(stats.rushBonus * 100)}% viteză pentru 5 secunde. Cooldown: 15 secunde.`;
   scene.rushButton.classList.toggle('active', active);
   scene.rushButton.disabled = scene.gameOver || state.cooldownSeconds > 0;
   scene.rushStatus.textContent = active ? `Activ ${state.activeSeconds}s` :
     state.cooldownSeconds > 0 ? `${state.cooldownSeconds}s` : 'Pregătit';
   const aura = scene.rushAura;
   aura.setVisible(active);
-  if (!active) return state.speed;
+  if (!active) return speed;
   aura.clear();
   aura.setPosition(scene.player.x, scene.player.y + 13);
   aura.setDepth(scene.player.depth + 0.01);
@@ -80,5 +84,5 @@ export function updateRush(scene) {
     aura.lineStyle(2, i % 3 ? 0xff354a : 0xffa37b, 1 - progress * 0.7);
     aura.lineBetween(x, y, x + Math.sin(angle) * 5, y + 7);
   }
-  return state.speed;
+  return speed;
 }

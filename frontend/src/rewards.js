@@ -1,5 +1,7 @@
 import { mountSkillButton } from './skills.js';
 import { getSelectedItem } from './inventory.js';
+import { damageMetinMob, damageMetinStone } from './metin-stones.js';
+import { derivedStats, spellDamage } from './character-stats.js';
 
 export class AreaSkill {
   constructor() { this.until = 0; this.readyAt = 0; this.nextTick = 0; }
@@ -18,7 +20,7 @@ export class AreaSkill {
 }
 
 export function slowMultiplier(enemy, now) {
-  return now < (enemy.slowUntil || 0) ? 0.5 : 1;
+  return now < (enemy.slowUntil || 0) ? (enemy.slowFactor || 0.5) : 1;
 }
 
 function usable(scene) {
@@ -26,6 +28,10 @@ function usable(scene) {
 }
 
 function nearbyEnemies(scene, radius) {
+  if (scene.currentLevel === 2) {
+    const mobs = (scene.metinMobs || []).filter(({ alive }) => alive).map(({ sprite }) => sprite);
+    return mobs.filter((enemy) => Math.hypot(enemy.x - scene.player.x, enemy.y - scene.player.y) <= radius);
+  }
   const enemies = scene.bossFightActive && scene.boss ? [scene.boss] :
     scene.bossRoomActive ? [] : scene.npcs.filter(({ alive }) => alive).map(({ npc }) => npc);
   return enemies.filter((enemy) => Math.hypot(enemy.x - scene.player.x, enemy.y - scene.player.y) <= radius);
@@ -94,7 +100,8 @@ export function activateDeathBreath(scene) {
 export function activateFlashlight(scene) {
   if (!scene.inventory.some(({ type }) => type === 'flashlight') || !usable(scene) || scene.time.now < scene.flashlightReadyAt) return false;
   scene.flashlightReadyAt = scene.time.now + 10000;
-  nearbyEnemies(scene, 150).forEach((enemy) => { enemy.slowUntil = scene.time.now + 4000; });
+  const power = derivedStats(scene).spellPower;
+  nearbyEnemies(scene, 150).forEach((enemy) => { enemy.slowUntil = scene.time.now + 4000 * Math.min(2, power); enemy.slowFactor = Math.max(0.2, 0.5 - (power - 1) * 0.1); });
   scene.slowVisualUntil = scene.time.now + 700;
   return true;
 }
@@ -104,9 +111,11 @@ export function updateRewards(scene) {
   const active = !scene.gameOver && now < scene.deathBreath.until;
   if (active && scene.deathBreath.tick(now)) {
     nearbyEnemies(scene, 130).forEach((enemy) => {
-      if (enemy === scene.boss) scene.damageBoss(1);
-      else scene.damageVillager(scene.npcs.find(({ npc }) => npc === enemy), 1);
+      if (enemy.metinMob) damageMetinMob(scene, enemy.metinMob, spellDamage(scene, 1));
+      else if (enemy === scene.boss) scene.damageBoss(spellDamage(scene, 1));
+      else scene.damageVillager(scene.npcs.find(({ npc }) => npc === enemy), spellDamage(scene, 1));
     });
+    if (scene.currentLevel === 2) (scene.metinStones || []).filter((stone) => !stone.broken && Math.hypot(stone.x - scene.player.x, stone.y - scene.player.y) <= 130).forEach((stone) => damageMetinStone(scene, stone, spellDamage(scene, 1)));
   }
   if (scene.deathBreathButton) {
     const seconds = Math.ceil(Math.max(0, scene.deathBreath.readyAt - now) / 1000);

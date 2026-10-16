@@ -18,6 +18,11 @@ export function storePartyTete(scene) {
 export function deployPartyTete(scene, item) {
   const slot = scene.inventory.indexOf(item);
   if (slot < 0 || item?.type !== 'party-tete' || !scene.partyTeteSleeping || !scene.partyTete) return false;
+  if (scene.partyTeteHealth <= 0) {
+    const help = scene.inventoryUi?.querySelector('.inventory-help');
+    if (help) help.textContent = 'Tete are 0 HP. Folosește o bere din inventar pentru a-l învia, apoi cheamă-l din nou.';
+    return false;
+  }
   const bounds = scene.physics.world.bounds;
   const solids = (scene.level2Solids || scene.arenaSolids).getChildren().map(({ body }) => body).filter(Boolean);
   let position;

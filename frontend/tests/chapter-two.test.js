@@ -19,15 +19,17 @@ function scene() {
   };
   const callbacks = [];
   return {
-    overlays, callbacks, hidePrompt() {}, events: { once() {} }, setQuest() {},
+    overlays, callbacks, hidePrompt() {}, events: { once() {}, on() {}, off() {} }, setQuest() {},
     player: { x: 0, y: 0, setVelocity() { return this; }, setPosition(x, y) { this.x = x; this.y = y; return this; } },
     partyTete: { setVelocity() { return this; }, setPosition() { return this; } },
     bossRoomBounds: { x: 480, y: 340, width: 640, height: 400 },
     inventoryUi: { classList: { contains: () => true } },
     cameras: { main: { fadeOut() {}, fadeIn() {}, setBounds() {} } },
     time: { delayedCall: (_delay, callback) => callbacks.push(callback) },
-    add: { graphics: chain, text: chain, zone: chain },
-    physics: { world: { setBounds() {} }, add: { collider: chain, staticGroup: () => ({ add() {} }) } },
+    add: { graphics: chain, text: chain, zone: chain, sprite: chain, image: chain, ellipse: chain },
+    textures: { exists: () => true, getBase64: () => 'data:image/png;base64,test' },
+    tweens: { add() {}, killTweensOf() {} },
+    physics: { world: { setBounds() {} }, add: { collider: chain, group: () => ({ add() {} }), staticGroup: () => ({ add() {} }) } },
     bossRoomLayer: { setVisible() {} }, bossArenaColliders: [], arenaSolids: { clear() {} },
     obstacles: { getChildren: () => [{ body: { enable: true } }] },
   };

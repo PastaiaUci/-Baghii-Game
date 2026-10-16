@@ -1,3 +1,5 @@
+import { syncCharacterStats } from './character-stats.js';
+
 export const EXTRA_GEAR = {
   'wind-boots': { type: 'wind-boots', slot: 'boots', name: 'Papuci de Vânt', price: 350, stat: '+25% viteză de mișcare', description: 'Mai ușor pe drum, mai rapid în luptă. Bonusul se combină cu Iureș.', details: ['Se echipează în slotul de cizme.', 'Bonus activ doar cât sunt echipați.'], icon: 'boots-icon' },
   shield: { type: 'shield', slot: 'shield', name: 'Scut de fier', price: 300, stat: '50 puncte de rezistență', description: 'Ține apăsat click dreapta pentru a bloca damage. La 0 rezistență, scutul se sparge și dispare.', details: ['Absoarbe până la 50 damage în total.', 'Damage-ul care depășește rezistența trece mai departe.', 'Se echipează în slotul de scut.'], icon: 'shield-icon' },
@@ -33,6 +35,7 @@ export function toggleGear(scene, item) {
     scene.inventory[slot] = { type: 'empty', label: `Slot ${slot + 1}`, key: String(slot + 1) };
     scene[property] = item;
   }
+  syncCharacterStats(scene);
   scene.updateInventoryList(); scene.updateHotbarState(); return true;
 }
 export function movementMultiplier(scene) { return scene.equippedBoots ? 1.25 : 1; }
@@ -48,6 +51,7 @@ export function absorbShieldDamage(scene, damage) {
   if (shield.durability <= 0) {
     scene.equippedShield = null;
     scene.inventory = scene.inventory.map((item, index) => item === shield ? { type: 'empty', key: String(index + 1), label: `Slot ${index + 1}` } : item);
+    syncCharacterStats(scene);
     scene.updateInventoryList(); scene.updateHotbarState();
   }
   return damage - blocked;

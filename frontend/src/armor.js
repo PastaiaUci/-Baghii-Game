@@ -1,4 +1,5 @@
 import { updatePlayerHealth } from './boss.js';
+import { syncCharacterStats } from './character-stats.js';
 
 export function buyHelmet(scene) {
   if (scene.shopHelmetSold || scene.equippedHelmet || scene.inventory.some((item) => item.type === 'helmet')) return 'Casca a fost vândută. Nu mai este în stoc.';
@@ -31,6 +32,7 @@ export function toggleHelmet(scene, item) {
     scene.equippedHelmet = item;
   }
   scene.updateInventoryList(); scene.updateHotbarState();
+  syncCharacterStats(scene);
   updatePlayerHealth(scene);
   return true;
 }

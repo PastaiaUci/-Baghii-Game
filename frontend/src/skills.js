@@ -1,4 +1,5 @@
 import { getSelectedItem } from './inventory.js';
+import { spellDamage } from './character-stats.js';
 
 export function mountSkillButton(scene, button) {
   (scene.skillbarSlots || document.body).appendChild(button);
@@ -10,7 +11,7 @@ export function hasSwordInHand(scene) {
 
 export function swordAuraBonus(scene, target) {
   if (!hasSwordInHand(scene) || scene.time.now >= scene.swordAuraSkill.until) return 0;
-  return target === 'boss' ? 2 : 1;
+  return spellDamage(scene, target === 'boss' ? 2 : 1);
 }
 
 export class SwordAuraSkill {
