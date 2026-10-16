@@ -174,15 +174,18 @@ class FarmScene extends Phaser.Scene {
         return;
       }
 
+      const selectedItem = getSelectedItem(this);
+      if (selectedItem?.type === 'party-tete') {
+        deployPartyTete(this, selectedItem);
+        return;
+      }
       const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
       if (clickPartyTete(this, worldPoint)) return;
       if (clickDicePlayer(this, worldPoint)) return;
       if (clickTavernDoor(this, worldPoint)) return;
       if (clickChapterPortal(this, worldPoint)) return;
       if (clickBossLoot(this, worldPoint)) return;
-      const selectedItem = getSelectedItem(this);
       if (['wind-boots', 'shield'].includes(selectedItem?.type)) { toggleGear(this, selectedItem); return; }
-      if (selectedItem?.type === 'party-tete') { deployPartyTete(this, selectedItem); return; }
       if (selectedItem?.type === 'helmet') {
         toggleHelmet(this, selectedItem);
         return;

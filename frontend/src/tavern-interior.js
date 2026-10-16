@@ -4,7 +4,6 @@ import { playSound } from './audio.js';
 import { shiftVillageTimers } from './tavern-access.js';
 import { getTavernQuest, updateTavernQuestHint, talkToTavernNpc, startSnikuWalk, addSnikuBeer } from './tavern-quest.js';
 import { getGdolfIdleTexture } from './player-art.js';
-import { createShop } from './shop.js';
 import { createHelmetVisual } from './armor.js';
 import { createGearVisual, movementMultiplier } from './gear.js';
 
@@ -37,7 +36,6 @@ export class TavernScene extends Phaser.Scene {
     this.keys = this.input.keyboard.addKeys('W,A,S,D,E,ESC');
     this.createVisitors();
     this.createDialogue();
-    createShop(this, this.farm);
     createHelmetVisual(this, this.farm);
     createGearVisual(this, this.farm);
     this.hint = document.createElement('div');
