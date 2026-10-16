@@ -13,6 +13,7 @@ import { createPotionHeld, updatePotionHeld, useHealthPotion } from './health-po
 import { getSelectedItem, installInventoryDragging } from './inventory.js';
 import { equipmentPanelMarkup, updateEquipmentPanel } from './equipment-panel.js';
 import { clickDicePlayer } from './dice-players.js';
+import { createCouponKeeperTexture } from './coupon-keeper-art.js';
 import './style.css';
 import { createVillageGround, createVillageProps, createVillageTextures } from './village.js';
 import { createRushSkill, activateRush, updateRush } from './rush.js';
@@ -337,7 +338,7 @@ class FarmScene extends Phaser.Scene {
     const key = 'coupon-keeper';
     const keeperX = 260;
     const keeperY = 320;
-    this.createNpcTexture(key, 0x3a2d27, 0x7d9c4d, 0xeac99b, 0xd8a15c);
+    createCouponKeeperTexture(this, key);
 
     this.couponKeeper = this.physics.add.sprite(keeperX, keeperY, key);
     this.couponKeeper.setDepth(15);
