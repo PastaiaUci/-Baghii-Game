@@ -12,6 +12,7 @@ import { installPauseMenu } from './pause-menu.js';
 import { createPotionHeld, updatePotionHeld, useHealthPotion } from './health-potion.js';
 import { getSelectedItem, installInventoryDragging } from './inventory.js';
 import { equipmentPanelMarkup, updateEquipmentPanel } from './equipment-panel.js';
+import { clickDicePlayer } from './dice-players.js';
 import './style.css';
 import { createVillageGround, createVillageProps, createVillageTextures } from './village.js';
 import { createRushSkill, activateRush, updateRush } from './rush.js';
@@ -160,6 +161,7 @@ class FarmScene extends Phaser.Scene {
       }
 
       const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+      if (clickDicePlayer(this, worldPoint)) return;
       if (clickTavernDoor(this, worldPoint)) return;
       if (clickChapterPortal(this, worldPoint)) return;
       if (clickBossLoot(this, worldPoint)) return;
@@ -360,7 +362,7 @@ class FarmScene extends Phaser.Scene {
 
     this.couponKeeperMarker = this.add.text(keeperX, keeperY - 50, '!', {
       fontFamily: 'Arial',
-      fontSize: '10px',
+      fontSize: '12px',
       color: '#ffd166',
       stroke: '#1f1f1f',
       strokeThickness: 3,
@@ -1263,9 +1265,9 @@ class FarmScene extends Phaser.Scene {
     this.abgNpcLabel.setOrigin(0.5, 0.5);
     this.abgNpcLabel.setDepth(30);
 
-    this.abgNpcMarker = this.add.text(spawnX, spawnY - 62, '!', {
+    this.abgNpcMarker = this.add.text(spawnX, spawnY - 68, '!', {
       fontFamily: 'Arial',
-      fontSize: '10px',
+      fontSize: '12px',
       color: '#ffd166',
       stroke: '#1f1f1f',
       strokeThickness: 3,

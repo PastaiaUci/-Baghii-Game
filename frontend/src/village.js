@@ -1,4 +1,7 @@
 import { createTavern } from './tavern.js';
+import { createVillageWater } from './village-water.js';
+import { createLionStable } from './lion-stable.js';
+import { createDicePlayers } from './dice-players.js';
 
 // Visuals and solid footprints share world coordinates; roofs and foliage are decorative.
 export function createVillageGround(scene, width, height) {
@@ -69,6 +72,9 @@ export function createVillageProps(scene) {
   };
   createVillageWalls(scene, scene.physics.world.bounds.width, scene.physics.world.bounds.height);
   createTavern(scene);
+  createVillageWater(scene);
+  createLionStable(scene);
+  createDicePlayers(scene);
   const decoration = scene.add.graphics().setDepth(1);
   scene.worldObjects.push(decoration);
   const houses = [

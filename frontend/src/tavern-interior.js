@@ -145,9 +145,14 @@ export class TavernScene extends Phaser.Scene {
         fontFamily: 'Arial', fontSize: '12px', color: '#ffe1ac', stroke: '#281e1b', strokeThickness: 3,
       }).setOrigin(0.5).setDepth(30).setInteractive({ useHandCursor: true });
       this.tavernVisitors[name] = { sprite, group, zone, label };
+      const marker = this.add.text(0, -52, '!', {
+        fontFamily: 'Arial', fontSize: '12px', fontStyle: 'bold', color: '#ffdc83', stroke: '#392819', strokeThickness: 3,
+      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      group.add(marker);
       if (name === 'Sniku' && ['ready', 'completed'].includes(quest.status)) addSnikuBeer(this);
       const talk = () => { if (!this.npcDialogueOpen && !this.leaving) talkToTavernNpc(this, name, line); };
       sprite.on('pointerdown', talk); label.on('pointerdown', talk);
+      marker.on('pointerdown', talk);
     });
   }
 

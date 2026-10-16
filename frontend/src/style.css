@@ -893,6 +893,34 @@ canvas {
 .health-potion-icon::before { content: ''; position: absolute; top: -8px; left: 6px; width: 9px; height: 6px; background: #b78b57; border: 1px solid #f1d294; border-radius: 2px; }
 
 .inventory-help { margin: 4px 0 16px; font: 12px/1.5 Arial, sans-serif; color: #e2d5b5; }
+.dice-game { margin: 12px 0; padding: 14px; border: 1px solid #b6945455; border-radius: 8px; background: #102d22aa; font: 13px/1.5 Arial, sans-serif; }
+.dice-game p { margin: 7px 0; }
+.dice-game label { display: flex; align-items: center; gap: 12px; color: #f2d79d; }
+.dice-game input { width: 90px; padding: 8px; border: 1px solid #b69454; border-radius: 4px; background: #15221c; color: #fff0cc; }
+.dice-bet-presets { display: flex; gap: 8px; margin: 10px 0; }
+.dice-game button { padding: 7px 15px; border: 1px solid #bb9859; border-radius: 5px; background: #4a3823; color: #ffe3ad; cursor: pointer; }
+.dice-game button:hover { background: #6b5130; }
+.dice-roll-faces { font-size: 23px; color: #fff1cf; animation: dice-reveal 0.4s ease-out; }
+.dice-result { margin-top: 12px; color: #f4d99e; }
+@keyframes dice-reveal { from { transform: translateY(-7px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.dice-throw-tray { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; padding: 14px 8px; border: 3px solid #77532f; border-radius: 12px; background: radial-gradient(ellipse, #38674c, #153e2d); box-shadow: inset 0 0 22px #0008; }
+.dice-throw-lane { text-align: center; min-width: 0; }
+.dice-throw-lane + .dice-throw-lane { border-left: 1px solid #c7c29333; }
+.dice-throw-lane strong { color: #e6d9b2; font: bold 12px Arial, sans-serif; }
+.dice-cube-pair { display: flex; justify-content: center; gap: 18px; padding: 30px 0 23px; }
+.dice-cube-space { width: 32px; height: 32px; perspective: 350px; }
+.dice-cube { position: relative; width: 32px; height: 32px; transform-style: preserve-3d; }
+.dice-cube-face { position: absolute; inset: 0; display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); gap: 2px; padding: 5px; box-sizing: border-box; background: #f6e7c4; border: 1px solid #c4af87; border-radius: 4px; backface-visibility: hidden; box-shadow: inset 0 0 5px #a8895455; }
+.dice-cube-face i { display: block; border-radius: 50%; background: #30271e; box-shadow: inset 0 1px 1px #0008; }
+.dice-face-1 { transform: translateZ(16px); }
+.dice-face-2 { transform: rotateX(90deg) translateZ(16px); background: #fff0d3; }
+.dice-face-3 { transform: rotateY(90deg) translateZ(16px); background: #e6d0a6; }
+.dice-face-4 { transform: rotateY(-90deg) translateZ(16px); background: #ecdbb8; }
+.dice-face-5 { transform: rotateX(-90deg) translateZ(16px); background: #d6bf96; }
+.dice-face-6 { transform: rotateY(180deg) translateZ(16px); }
+.dice-throw-total { font-size: 12px; color: #f3e0b1; }
+.dice-game button:disabled { opacity: 0.5; cursor: wait; }
+@media (max-width: 420px) { .dice-cube-pair { gap: 10px; } .dice-throw-tray { gap: 6px; padding-inline: 4px; } }
 .inventory-close { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid #b9955766; border-radius: 6px; background: #30281e; color: #f3d6a6; font: 26px/1 Arial, sans-serif; cursor: pointer; }
 .inventory-close:hover { background: #55412b; border-color: #e1bd76; }
 .inventory-toggle { position: fixed; right: 16px; bottom: 64px; z-index: 160; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 9px 12px; border: 1px solid #bc9555; border-radius: 10px; background: linear-gradient(#383022, #1b1a15); color: #efd8a8; box-shadow: 0 4px 15px #0006; cursor: pointer; font: 11px Arial, sans-serif; }
