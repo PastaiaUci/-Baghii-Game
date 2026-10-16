@@ -70,7 +70,7 @@ export function enrageVillage(scene) {
     v.path = [];
     v.nextPathAt = 0;
     v.marker.setVisible(true).setText('!').setColor('#ff7861');
-    v.label.setText(`${v.name} · ${v.role.name}`).setColor('#ffc4ae');
+    v.label.setText(v.name).setColor('#ffc4ae');
   });
   return true;
 }
@@ -100,7 +100,7 @@ export function updateEnragedVillager(scene, v) {
   const archer = v.roleIndex === 1;
   v.weapon.setVisible(true).setPosition(v.npc.x + 12, v.npc.y + 10).setDepth(v.npc.depth + 0.02);
   v.weapon.setRotation(Math.atan2(dy, dx) + Math.PI / 2 + (v.windingUp ? Math.sin(now / 65) * 0.16 : 0));
-  v.label.setText(`${v.name} · ${v.role.name} ${v.health}/${v.maxHealth}`);
+  v.label.setText(`${v.name} ${v.health}/${v.maxHealth}`);
   if (v.windingUp) {
     v.npc.setVelocity(0, 0);
     if (now < v.windupUntil) return;

@@ -1,3 +1,5 @@
+import { createPartyBeer, updatePartyBeer } from './party-beer.js';
+
 export function findPartyPath(start, goal, bounds, obstacles, cell = 20) {
   const cols = Math.floor(bounds.width / cell), rows = Math.floor(bounds.height / cell);
   const index = (p) => [Math.max(0, Math.min(cols - 1, Math.floor((p.x - bounds.x) / cell))), Math.max(0, Math.min(rows - 1, Math.floor((p.y - bounds.y) / cell)))];
@@ -27,23 +29,29 @@ export function findPartyPath(start, goal, bounds, obstacles, cell = 20) {
 export function joinParty(scene, sprite) {
   sprite.clearTint().setScale(0.9).setVelocity(0, 0);
   scene.partyTete = sprite;
+  scene.partyTeteHealth = 25;
+  scene.partyTeteSleeping = false;
+  createPartyBeer(scene);
   scene.partyPath = [];
   scene.partyNextPathAt = 0;
   scene.partyLabel = scene.add.text(sprite.x, sprite.y - 43, 'Tete · Party', {
     fontFamily: 'Arial', fontSize: '10px', color: '#bce6cb', stroke: '#17231f', strokeThickness: 3,
   }).setOrigin(0.5).setDepth(30);
   scene.partyShadow = scene.add.ellipse(sprite.x, sprite.y + 27, 38, 12, 0x101019, 0.35).setDepth(3);
+  scene.partyHealthBar = scene.add.graphics().setDepth(30);
   scene.partyCollider = scene.physics.add.collider(sprite, scene.arenaSolids);
   const hud = document.createElement('div');
   hud.className = 'party-hud';
   hud.innerHTML = '<img src="/assets/Tete.png" alt="Tete"><div><small>PARTY</small><strong>Tete</strong><span>Te urmează</span></div>';
+  scene.partyHud = hud;
+  hud.querySelector('span').textContent = '25/25 HP · Te urmează';
   document.body.appendChild(hud);
   scene.events.once('shutdown', () => hud.remove());
 }
 
 export function updateParty(scene) {
   const npc = scene.partyTete;
-  if (!npc?.active) return;
+  if (!npc?.active || scene.partyTeteSleeping) return;
   const start = npc.body.center, goal = scene.player.body.center;
   const distance = Math.hypot(goal.x - start.x, goal.y - start.y);
   if (scene.bookOpen || scene.chapterDialogueOpen || scene.levelTransitioning || distance < 52) {
@@ -65,8 +73,12 @@ export function updateParty(scene) {
     } else npc.setVelocity(0, 0);
   }
   npc.setDepth(10 + npc.body.bottom / 100);
-  scene.partyLabel.setPosition(npc.x, npc.y - 43);
+  scene.partyLabel.setPosition(npc.x, npc.y - 49).setText(`Tete · ${scene.partyTeteHealth}/25`);
+  scene.partyHealthBar.clear().setPosition(npc.x - 18, npc.y - 42);
+  scene.partyHealthBar.fillStyle(0x25372e).fillRoundedRect(0, 0, 36, 4, 1);
+  scene.partyHealthBar.fillStyle(0x93cba6).fillRect(1, 1, 34 * scene.partyTeteHealth / 25, 2);
   scene.partyShadow.setPosition(npc.x, npc.body.bottom - 3);
+  updatePartyBeer(scene);
 }
 
 export function showLevelOneTitle(scene) {

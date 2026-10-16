@@ -14,6 +14,11 @@ import { getSelectedItem, installInventoryDragging } from './inventory.js';
 import { equipmentPanelMarkup, updateEquipmentPanel } from './equipment-panel.js';
 import { clickDicePlayer } from './dice-players.js';
 import { createCouponKeeperTexture } from './coupon-keeper-art.js';
+import { createVillageGoldLayout } from './village-gold.js';
+import { createShop } from './shop.js';
+import { toggleHelmet, createHelmetVisual, absorbArmorDamage, armorPoints } from './armor.js';
+import { clickPartyTete, deployPartyTete } from './party-storage.js';
+import { toggleGear, movementMultiplier, absorbShieldDamage, createGearVisual } from './gear.js';
 import './style.css';
 import { createVillageGround, createVillageProps, createVillageTextures } from './village.js';
 import { createRushSkill, activateRush, updateRush } from './rush.js';
@@ -143,14 +148,22 @@ class FarmScene extends Phaser.Scene {
     this.playerHeadHealthText = this.add.text(0, 0, '', {
       fontFamily: 'Arial', fontSize: '8px', color: '#eaffdf', stroke: '#17211c', strokeThickness: 2,
     }).setOrigin(0.5).setDepth(32);
+    this.playerArmorHeadText = this.add.text(0, 0, '', {
+      fontFamily: 'Arial', fontSize: '7px', color: '#f1f3f5', stroke: '#303741', strokeThickness: 1,
+    }).setOrigin(0.5).setDepth(31);
     this.updatePlayerHeadHealth();
 
     this.createDialogueBox();
+    createShop(this);
+    createHelmetVisual(this);
+    createGearVisual(this);
+    this.input.mouse.disableContextMenu();
     createGameAudio(this);
     installPauseMenu(this);
     createVillageCombat(this);
 
     this.input.on('pointerdown', (pointer) => {
+      if (pointer.rightButtonDown()) return;
       if (this.tavernActive) return;
       if (!this.introOverlay.classList.contains('hidden')) return;
       if (this.gameOver) return;
@@ -162,11 +175,18 @@ class FarmScene extends Phaser.Scene {
       }
 
       const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+      if (clickPartyTete(this, worldPoint)) return;
       if (clickDicePlayer(this, worldPoint)) return;
       if (clickTavernDoor(this, worldPoint)) return;
       if (clickChapterPortal(this, worldPoint)) return;
       if (clickBossLoot(this, worldPoint)) return;
       const selectedItem = getSelectedItem(this);
+      if (['wind-boots', 'shield'].includes(selectedItem?.type)) { toggleGear(this, selectedItem); return; }
+      if (selectedItem?.type === 'party-tete') { deployPartyTete(this, selectedItem); return; }
+      if (selectedItem?.type === 'helmet') {
+        toggleHelmet(this, selectedItem);
+        return;
+      }
       if (selectedItem?.type === 'health-potion') {
         useHealthPotion(this, Number(this.selectedWeapon.replace('slot-', '')) - 1);
         return;
@@ -221,6 +241,7 @@ class FarmScene extends Phaser.Scene {
       if (key === '4') this.selectWeapon('slot-4');
       if (key === '5') this.selectWeapon('slot-5');
       if (key === 'e') {
+        if (getSelectedItem(this)?.type === 'book') { openBook(this); return; }
         if (tryEnterTavern(this)) return;
         if (!event.repeat && useChapterPortal(this)) return;
         if (!event.repeat && consumeNearbyBossLoot(this)) return;
@@ -599,6 +620,12 @@ class FarmScene extends Phaser.Scene {
           <span class="sword-blade"></span>
           <span class="sword-hilt"></span>
         `;
+      } else if (item.type === 'wind-boots' || item.type === 'shield') {
+        itemNode.className = 'hotbar-item'; itemNode.innerHTML = `<span class="${item.type === 'shield' ? 'shield-icon' : 'boots-icon'}"></span>`;
+      } else if (item.type === 'party-tete') {
+        itemNode.className = 'hotbar-item'; itemNode.innerHTML = '<img class="tete-item-icon" src="/assets/Tete.png" alt="Tete">';
+      } else if (item.type === 'helmet') {
+        itemNode.className = 'hotbar-item'; itemNode.innerHTML = '<span class="helmet-icon"></span>';
       } else if (item.type === 'coupon') {
         itemNode.className = 'hotbar-item hotbar-coupon';
         itemNode.innerHTML = `
@@ -636,17 +663,39 @@ class FarmScene extends Phaser.Scene {
     `;
 
     this.inventoryList = this.inventoryUi.querySelector('.inventory-list');
+    const helmetSlot = this.inventoryUi.querySelector('[data-equipment="helmet"]');
+    for (const [slotName, property] of [['boots', 'equippedBoots'], ['shield', 'equippedShield']]) {
+      const slot = this.inventoryUi.querySelector(`[data-equipment="${slotName}"]`);
+      slot.setAttribute('role', 'button'); slot.tabIndex = 0;
+      slot.addEventListener('click', () => toggleGear(this, this[property]));
+      slot.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleGear(this, this[property]); } });
+    }
+    helmetSlot.setAttribute('role', 'button'); helmetSlot.tabIndex = 0;
+    helmetSlot.addEventListener('click', () => toggleHelmet(this, this.equippedHelmet));
+    helmetSlot.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleHelmet(this, this.equippedHelmet); } });
     this.inventoryUi.querySelector('.inventory-close').addEventListener('click', () => this.toggleInventory(false));
     installInventoryDragging(this);
     this.inventoryList.addEventListener('click', (event) => {
       if (this.game.loop.now < (this.inventoryClickBlockedUntil || 0)) return;
       const slot = event.target.closest('[data-inventory-index]');
+      if (slot && ['wind-boots', 'shield'].includes(this.inventory[Number(slot.dataset.inventoryIndex)]?.type)) toggleGear(this, this.inventory[Number(slot.dataset.inventoryIndex)]);
       if (slot && this.inventory[Number(slot.dataset.inventoryIndex)]?.type === 'book') openBook(this);
+      if (slot && this.inventory[Number(slot.dataset.inventoryIndex)]?.type === 'helmet') toggleHelmet(this, this.inventory[Number(slot.dataset.inventoryIndex)]);
+      if (slot && this.inventory[Number(slot.dataset.inventoryIndex)]?.type === 'party-tete') deployPartyTete(this, this.inventory[Number(slot.dataset.inventoryIndex)]);
       if (slot && this.inventory[Number(slot.dataset.inventoryIndex)]?.type === 'health-potion') useHealthPotion(this, Number(slot.dataset.inventoryIndex));
     });
     this.inventoryList.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' || event.key === ' ') {
         const slot = event.target.closest('[data-inventory-index]');
+        if (slot && ['wind-boots', 'shield'].includes(this.inventory[Number(slot.dataset.inventoryIndex)]?.type)) {
+          event.preventDefault(); toggleGear(this, this.inventory[Number(slot.dataset.inventoryIndex)]);
+        }
+        if (slot && this.inventory[Number(slot.dataset.inventoryIndex)]?.type === 'party-tete') {
+          event.preventDefault(); deployPartyTete(this, this.inventory[Number(slot.dataset.inventoryIndex)]);
+        }
+        if (slot && this.inventory[Number(slot.dataset.inventoryIndex)]?.type === 'helmet') {
+          event.preventDefault(); toggleHelmet(this, this.inventory[Number(slot.dataset.inventoryIndex)]);
+        }
         if (slot && this.inventory[Number(slot.dataset.inventoryIndex)]?.type === 'book') {
           event.preventDefault();
           openBook(this);
@@ -700,10 +749,10 @@ class FarmScene extends Phaser.Scene {
                 <span class="coupon-ticket"></span>
               </div>
             `
-            : item.type === 'flashlight' ? '<span class="flashlight-icon"></span>' : item.type === 'book' ? '<span class="book-icon">I</span>' : item.type === 'health-potion' ? '<span class="health-potion-icon">+</span>' : '';
+            : item.type === 'wind-boots' ? '<span class="boots-icon"></span>' : item.type === 'shield' ? '<span class="shield-icon"></span>' : item.type === 'party-tete' ? '<img class="tete-item-icon" src="/assets/Tete.png" alt="Tete">' : item.type === 'helmet' ? '<span class="helmet-icon"></span>' : item.type === 'flashlight' ? '<span class="flashlight-icon"></span>' : item.type === 'book' ? '<span class="book-icon">I</span>' : item.type === 'health-potion' ? '<span class="health-potion-icon">+</span>' : '';
 
         return `
-          <div class="inventory-slot ${item.type === 'empty' ? 'empty' : ''} ${index < 5 ? 'hotbar-linked' : ''}" data-inventory-index="${index}" draggable="${item.type !== 'empty'}" ${['book', 'health-potion'].includes(item.type) ? 'role="button" tabindex="0"' : ''} title="${item.label}">
+          <div class="inventory-slot ${item.type === 'empty' ? 'empty' : ''} ${index < 5 ? 'hotbar-linked' : ''} ${item === this.equippedHelmet ? 'item-equipped' : ''}" data-inventory-index="${index}" draggable="${item.type !== 'empty'}" ${['book', 'health-potion', 'helmet', 'party-tete', 'wind-boots', 'shield'].includes(item.type) ? 'role="button" tabindex="0"' : ''} title="${item.label}">
             ${content}
             ${index < 5 ? '<span class="inventory-hotbar-label">HOTBAR</span>' : ''}
             <span class="slot-number">${index + 1}</span>
@@ -731,7 +780,6 @@ class FarmScene extends Phaser.Scene {
     this.selectedWeapon = slotName;
     updateEquipmentPanel(this);
     updatePotionHeld(this);
-    if (this.inventory[Number(slotName.replace('slot-', '')) - 1]?.type === 'book') openBook(this);
     this.hotbarSlots?.forEach((slot) => {
       slot.classList.toggle('active', slot.dataset.slot === slotName);
     });
@@ -856,45 +904,10 @@ class FarmScene extends Phaser.Scene {
   }
 
   spawnRandomGoldCoins() {
-    const positions = [
-      { x: 260, y: 420 },
-      { x: 440, y: 860 },
-      { x: 640, y: 430 },
-      { x: 900, y: 840 },
-      { x: 1000, y: 260 },
-      { x: 1320, y: 620 },
-      { x: 1240, y: 930 },
-      { x: 380, y: 1060 },
-      { x: 154, y: 840 },
-      { x: 740, y: 1010 },
-      { x: 1070, y: 1080 },
-      { x: 1200, y: 760 },
-    ];
-
-    while (positions.length < 18) {
-      positions.push({
-        x: 80 + Math.random() * (worldWidth - 160),
-        y: 80 + Math.random() * (worldHeight - 160),
-      });
-    }
-
+    const obstacles = this.obstacles.getChildren().map(({ body }) => body).filter(Boolean);
+    if (this.shopFootprint?.body) obstacles.push(this.shopFootprint.body);
+    const positions = createVillageGoldLayout(obstacles);
     positions.forEach((position, index) => {
-      const blocked = (x, y) => this.obstacles.getChildren().some(({ body }) =>
-        body && x > body.left - 18 && x < body.right + 18 && y > body.top - 18 && y < body.bottom + 28);
-      if (blocked(position.x, position.y)) {
-        // Search locally, preserving the distribution and value of every pickup.
-        search: for (let radius = 32; radius <= 320; radius += 32) {
-          for (let step = 0; step < 16; step += 1) {
-            const angle = step * Math.PI / 8;
-            const x = Phaser.Math.Clamp(position.x + Math.cos(angle) * radius, 40, worldWidth - 40);
-            const y = Phaser.Math.Clamp(position.y + Math.sin(angle) * radius, 40, worldHeight - 40);
-            if (!blocked(x, y)) {
-              position = { x, y };
-              break search;
-            }
-          }
-        }
-      }
       const coin = this.add.sprite(position.x, position.y, 'gold-coin');
       coin.setDepth(18);
       coin.setScale(1.1);
@@ -910,7 +923,7 @@ class FarmScene extends Phaser.Scene {
 
       this.goldPickups.push({
         sprite: coin,
-        value: 10 + (index % 4) * 5,
+        value: position.value,
         collected: false,
       });
     });
@@ -1438,7 +1451,7 @@ class FarmScene extends Phaser.Scene {
     }
     playSound(this, 'hit');
 
-    this.playerHealth = Math.max(0, this.playerHealth - amount);
+    this.playerHealth = Math.max(0, this.playerHealth - absorbArmorDamage(this, absorbShieldDamage(this, amount)));
     updatePlayerHealth(this);
     this.updatePlayerHeadHealth();
     this.player.setTint(0xff7d7d);
@@ -1514,7 +1527,7 @@ class FarmScene extends Phaser.Scene {
     this.playerWeapon?.setDepth(this.player.depth + 0.02);
     this.playerCoupon?.setDepth(this.player.depth + 0.03);
 
-    const speed = updateRush(this);
+    const speed = updateRush(this) * movementMultiplier(this);
     updateRewards(this);
     const movementLocked = this.bookOpen || this.chapterDialogueOpen || this.levelTransitioning;
     const moveX = movementLocked ? 0 : Number(this.cursors.right.isDown) - Number(this.cursors.left.isDown);
@@ -1719,8 +1732,14 @@ class FarmScene extends Phaser.Scene {
     if (!bar) return;
     bar.clear().setPosition(this.player.x - 19, this.player.y - 43);
     bar.fillStyle(0x15221c, 0.95).fillRoundedRect(0, 0, 38, 5, 2);
+    if (this.equippedHelmet) {
+      bar.fillStyle(0xb5bec8).fillTriangle(-7, -7, -1, -7, -4, 0);
+      bar.fillStyle(0x353b43, 0.95).fillRoundedRect(0, -10, 38, 8, 2);
+      bar.fillStyle(0x909eac).fillRoundedRect(1, -9, 36 * armorPoints(this) / 5, 6, 1);
+    }
+    this.playerArmorHeadText?.setVisible(Boolean(this.equippedHelmet)).setPosition(this.player.x, this.player.y - 49).setText(`${armorPoints(this)}/5`);
     bar.fillStyle(this.playerHealth <= 10 ? 0xe45a68 : 0x91d591).fillRect(1, 1, 36 * this.playerHealth / this.maxPlayerHealth, 3);
-    this.playerHeadHealthText.setPosition(this.player.x, this.player.y - 49).setText(`${this.playerHealth}/${this.maxPlayerHealth}`);
+    this.playerHeadHealthText.setPosition(this.player.x, this.player.y - (this.equippedHelmet ? 61 : 49)).setText(`${this.playerHealth}/${this.maxPlayerHealth}`);
   }
 
   createDialogueBox() {

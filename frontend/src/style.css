@@ -893,6 +893,55 @@ canvas {
 .health-potion-icon::before { content: ''; position: absolute; top: -8px; left: 6px; width: 9px; height: 6px; background: #b78b57; border: 1px solid #f1d294; border-radius: 2px; }
 
 .inventory-help { margin: 4px 0 16px; font: 12px/1.5 Arial, sans-serif; color: #e2d5b5; }
+.shield-icon { display: inline-block; position: relative; width: 25px; height: 31px; background: linear-gradient(110deg, #b1c2cf, #4a6277); border: 2px solid #c4ac71; clip-path: polygon(0 0, 100% 0, 90% 70%, 50% 100%, 10% 70%); }
+.shield-icon::after { content: ''; position: absolute; left: 10px; top: 4px; width: 4px; height: 20px; background: #e4d4a7; }
+.boots-icon { display: inline-block; position: relative; width: 32px; height: 26px; background: linear-gradient(100deg, #a1d7c4, #3c787e); clip-path: polygon(4% 0, 37% 0, 37% 62%, 47% 69%, 47% 100%, 0 100%, 0 67%, 4% 62%, 55% 0, 88% 0, 88% 62%, 100% 69%, 100% 100%, 52% 100%, 52% 67%, 55% 62%); }
+.shop-product + .shop-product { margin-top: 15px; }
+.shop-product-art .boots-icon, .shop-product-art .shield-icon { transform: scale(2); }
+.tete-item-icon { display: block; width: 80%; height: 80%; object-fit: cover; border-radius: 5px; border: 1px solid #c4a975; }
+.party-hud[hidden] { display: none; }
+.party-actions { margin: 12px 0; }
+.helmet-icon { display: inline-block; position: relative; width: 26px; height: 19px; border: 2px solid #465362; border-radius: 13px 13px 3px 3px; background: linear-gradient(100deg, #d6e1e4, #8d9ba9 45%, #596875); box-shadow: inset 0 3px #d8dfe4; }
+.helmet-icon::before { content: ''; position: absolute; left: 11px; top: 0; width: 3px; height: 20px; background: #d8bd75; }
+.helmet-icon::after { content: ''; position: absolute; left: -3px; bottom: -5px; width: 28px; height: 8px; border-left: 4px solid #788895; border-right: 4px solid #788895; box-sizing: border-box; }
+.item-equipped { box-shadow: inset 0 0 12px #d8ba6d55; outline: 1px solid #e4c479; }
+.equipment-slot[role="button"] { cursor: pointer; }
+.shop-offer { display: grid; grid-template-columns: 36px 1fr; gap: 12px; align-items: center; border: 1px solid #ac945d66; border-radius: 8px; padding: 18px; margin: 14px 0; background: #172b26; color: #ead9b3; font: 13px/1.5 Arial, sans-serif; }
+.shop-offer p { margin: 5px 0; }
+.shop-offer small { color: #b5bcb0; }
+.shop-offer button, .shop-status { grid-column: 1 / -1; }
+.shop-offer button { cursor: pointer; padding: 10px; border: 1px solid #d5af66; border-radius: 5px; background: #564024; color: #ffe3ae; }
+.player-armor { margin-bottom: 8px; font: 10px Arial, sans-serif; color: #c4ccd3; }
+.player-armor[hidden] { display: none; }
+.player-armor-track { margin-top: 4px; height: 5px; background: #353d46; border-radius: 3px; overflow: hidden; }
+.player-armor-fill { height: 100%; background: #b4bec8; }
+.player-armor-track { position: relative; height: 15px; }
+.player-armor-value { position: absolute; inset: 0; display: grid; place-items: center; color: #f5f7fa; font: bold 10px Arial, sans-serif; text-shadow: 0 1px 2px #18202c, 0 0 2px #18202c; }
+.shop-modal section { width: min(760px, 92vw); max-height: 90vh; overflow-y: auto; padding: 28px; border-color: #b19a65; background: linear-gradient(135deg, #27332b, #121d1b 70%); }
+.shop-modal .npc-dialog-portrait, .shop-modal .npc-dialog-text { display: none; }
+.shop-modal section > div { width: 100%; min-width: 0; }
+.shop-modal h2 { margin: 6px 0 16px; }
+.shop-modal .shop-offer { display: block; padding: 0; margin: 0; border: 0; background: none; }
+.shop-catalog-header { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 12px 0; border-block: 1px solid #a9915c55; color: #c8b78d; font-size: 10px; letter-spacing: 0.08em; }
+.shop-wallet { color: #f4d27e; font-size: 13px; }
+.shop-catalog { max-height: min(330px, 45vh); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #b7a174 #182520; padding: 16px 8px 16px 0; }
+.shop-product { display: grid; grid-template-columns: 114px 1fr; gap: 20px; padding: 18px; border: 1px solid #b8a47755; border-radius: 9px; background: linear-gradient(135deg, #40504455, #141e1b); }
+.shop-product-art { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px; align-self: start; height: 140px; border: 1px solid #b4ab8144; border-radius: 7px; background: radial-gradient(#b6c3ac33, #14201b); }
+.shop-product-art .helmet-icon { transform: scale(2); }
+.shop-item-rarity { color: #cfc3a3; font-size: 8px; letter-spacing: 0.1em; }
+.shop-modal .shop-product-details small { font-size: 9px; letter-spacing: 0.1em; }
+.shop-product h3 { margin: 5px 0 12px; font: 22px Georgia, serif; color: #f8e7bd; }
+.shop-stat { display: inline-block; padding: 4px 9px; border-radius: 4px; background: #b4c3d11c; color: #d5e0ec; font-weight: bold; }
+.shop-modal .shop-product p, .shop-modal .shop-empty p { font: 13px/1.6 Arial, sans-serif; color: #c7cbbb; margin: 12px 0; }
+.shop-product ul { padding-left: 17px; color: #b3bba9; font: 11px/1.8 Arial, sans-serif; }
+.shop-product footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; border-top: 1px solid #a9915c44; margin-top: 14px; padding-top: 12px; }
+.shop-product footer strong { font-size: 20px; color: #f5d27d; }
+.shop-modal .shop-product button { margin: 0; padding: 10px 14px; background: #c5a366; color: #211e17; }
+.shop-modal .shop-status { min-height: 20px; margin: 8px 0; font: 12px/1.5 Arial, sans-serif; color: #e4d5ae; }
+.shop-empty { text-align: center; padding: 35px 20px; }
+.shop-empty > span { display: block; font-size: 42px; color: #aa9c77; }
+.shop-empty strong { color: #e9d3a4; }
+@media (max-width: 520px) { .shop-modal section { padding: 18px; } .shop-product { grid-template-columns: 1fr; gap: 15px; } .shop-product-art { height: 105px; flex-direction: row; gap: 40px; } }
 .dice-game { margin: 12px 0; padding: 14px; border: 1px solid #b6945455; border-radius: 8px; background: #102d22aa; font: 13px/1.5 Arial, sans-serif; }
 .dice-game p { margin: 7px 0; }
 .dice-game label { display: flex; align-items: center; gap: 12px; color: #f2d79d; }

@@ -28,17 +28,25 @@ export function updatePlayerHealth(scene) {
   scene.playerHealthValue.textContent = `${health}/${scene.maxPlayerHealth}`;
   scene.playerHealthFill.style.width = `${health / scene.maxPlayerHealth * 100}%`;
   scene.playerHealthHud.classList.toggle('low', health <= scene.maxPlayerHealth / 3);
+  if (scene.playerArmorTrack) {
+    scene.playerArmorTrack.hidden = !scene.equippedHelmet;
+    scene.playerArmorValue.textContent = `Armură ${scene.equippedHelmet?.armorRemaining || 0}/5`;
+    scene.playerArmorFill.style.width = `${(scene.equippedHelmet?.armorRemaining || 0) / 5 * 100}%`;
+  }
 }
 
 function createPlayerHealth(scene) {
   scene.playerHealthHud?.remove();
   const hud = document.createElement('div');
   hud.className = 'player-health-hud';
-  hud.innerHTML = '<div class="player-health-heading"><span>Gdolf · Viață</span><strong class="player-health-value"></strong></div><div class="player-health-track"><div class="player-health-fill"></div></div>';
+  hud.innerHTML = '<div class="player-armor" hidden><div class="player-armor-track"><div class="player-armor-fill"></div><span class="player-armor-value"></span></div></div><div class="player-health-heading"><span>Gdolf · Viață</span><strong class="player-health-value"></strong></div><div class="player-health-track"><div class="player-health-fill"></div></div>';
   document.body.appendChild(hud);
   scene.playerHealthHud = hud;
   scene.playerHealthValue = hud.querySelector('.player-health-value');
   scene.playerHealthFill = hud.querySelector('.player-health-fill');
+  scene.playerArmorTrack = hud.querySelector('.player-armor');
+  scene.playerArmorValue = hud.querySelector('.player-armor-value');
+  scene.playerArmorFill = hud.querySelector('.player-armor-fill');
   updatePlayerHealth(scene);
   scene.events.once('shutdown', () => hud.remove());
 }

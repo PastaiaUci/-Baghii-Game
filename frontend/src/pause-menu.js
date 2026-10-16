@@ -25,6 +25,8 @@ export function buildControlsHelp(farm) {
   <dl>
     <dt>W A S D</dt><dd>Mișcă-l pe Gdolf.</dd>
     <dt>Click stânga</dt><dd>Atacă folosind sabia echipată. Click direct pe un NPC pentru dialog sau pe un obiect pentru interacțiune.</dd>
+    ${farm.equippedShield || farm.inventory?.some(({ type }) => type === 'shield') ? '<dt>Ține click dreapta</dt><dd>Blochează cu scutul echipat. Absoarbe maximum 50 damage în total; la 0 rezistență se sparge și dispare.</dd>' : ''}
+    ${farm.equippedBoots || farm.inventory?.some(({ type }) => type === 'wind-boots') ? '<dt>Papuci de Vânt</dt><dd>+25% viteză cât sunt echipați. Click în inventar pentru echipare sau pe slotul de cizme pentru dezechipare.</dd>' : ''}
     <dt>1 – 5</dt><dd>Selectează un obiect din hotbar. Primele 5 sloturi ale inventarului apar în hotbar în aceeași ordine; trage obiectele între sloturi pentru a le organiza.</dd>
     <dt>E</dt><dd>Interacționează în apropiere: Lavinia, dropuri, ușa cârciumii sau portal.</dd>
     <dt>I</dt><dd>Deschide sau închide inventarul.</dd>
@@ -42,7 +44,7 @@ export function buildControlsHelp(farm) {
     <li>Sabia se ridică automat când te apropii de ea.</li>
     <li>Cupon Keeper cere 100 de bănuți. Sătenii sunt imuni până cumperi cuponul; prima lovitură îi înfurie pe toți.</li>
     <li>Dialogurile se continuă cu butonul „Continuă”. Jocul stă pe loc cât citești.</li>
-    <li>Cartea se deschide prin click din inventar sau hotbar. Schimbă paginile cu butoanele Înapoi/Înainte.</li>
+    <li>Cartea se deschide cu E când este selectată în hotbar sau prin click în inventar. Tastele 1–5 doar selectează obiectul. Schimbă paginile cu butoanele Înapoi/Înainte.</li>
     ${farm.tavernQuest?.status === 'completed' || farm.inventory?.some(({ type }) => type === 'health-potion') ? '<li>Poțiunea de viață reface 10 HP. Click pe ea în inventar sau selecteaz-o în hotbar și dă click în joc. La viață maximă nu se consumă.</li>' : ''}
     <li>La cârciumă: E lângă ușă sau click pe ușă pentru intrare. E lângă ieșire sau „Înapoi în sat” pentru întoarcere.</li>
     <li>După Tete poți consuma doar unul dintre cele două dropuri. Tete intră în party, iar portalul duce în Nivelul 2.</li>

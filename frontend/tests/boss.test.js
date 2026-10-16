@@ -18,7 +18,8 @@ function object(x = 0, y = 0) {
 
 function setup() {
   const value = { textContent: '' }, fill = { style: {} };
-  const hud = { classList: { toggle() {} }, remove() {}, addEventListener() {}, querySelector: (selector) => selector.endsWith('value') ? value : fill };
+  const armorValue = { textContent: '' }, armorFill = { style: {} }, armorTrack = { hidden: true };
+  const hud = { classList: { toggle() {} }, remove() {}, addEventListener() {}, querySelector: (selector) => selector === '.player-armor' ? armorTrack : selector === '.player-armor-value' ? armorValue : selector === '.player-armor-fill' ? armorFill : selector.endsWith('value') ? value : fill };
   globalThis.document = { createElement: () => hud, body: { appendChild() {} } };
   const scene = {
     textures: { exists: () => true }, events: { once() {} }, time: { now: 100 },

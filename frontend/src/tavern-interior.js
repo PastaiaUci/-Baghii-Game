@@ -4,6 +4,9 @@ import { playSound } from './audio.js';
 import { shiftVillageTimers } from './tavern-access.js';
 import { getTavernQuest, updateTavernQuestHint, talkToTavernNpc, startSnikuWalk, addSnikuBeer } from './tavern-quest.js';
 import { getGdolfIdleTexture } from './player-art.js';
+import { createShop } from './shop.js';
+import { createHelmetVisual } from './armor.js';
+import { createGearVisual, movementMultiplier } from './gear.js';
 
 export class TavernScene extends Phaser.Scene {
   constructor() { super('TavernScene'); }
@@ -34,6 +37,9 @@ export class TavernScene extends Phaser.Scene {
     this.keys = this.input.keyboard.addKeys('W,A,S,D,E,ESC');
     this.createVisitors();
     this.createDialogue();
+    createShop(this, this.farm);
+    createHelmetVisual(this, this.farm);
+    createGearVisual(this, this.farm);
     this.hint = document.createElement('div');
     this.hint.className = 'tavern-hud';
     this.hint.innerHTML = '<strong>Cârciuma Bețivilor</strong><span>Click pe personaje pentru dialog · E lângă ușă pentru a ieși</span>';
@@ -180,7 +186,7 @@ export class TavernScene extends Phaser.Scene {
     const dx = Number(this.keys.D.isDown) - Number(this.keys.A.isDown);
     const dy = Number(this.keys.S.isDown) - Number(this.keys.W.isDown);
     const length = Math.hypot(dx, dy) || 1;
-    this.player.setVelocity(dx / length * 180, dy / length * 180);
+    this.player.setVelocity(dx / length * 180 * movementMultiplier(this.farm), dy / length * 180 * movementMultiplier(this.farm));
     this.player.setTexture(dx || dy ? this.farm.player.walkFrames[Math.floor(this.time.now / 140) % 3] : getGdolfIdleTexture(this.time.now));
     this.player.setDepth(10 + (this.player.y + 18) / 100);
     if ((dx || dy) && this.time.now >= this.nextStepAt) { this.nextStepAt = this.time.now + 290; playSound(this.farm, 'step'); }
