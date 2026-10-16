@@ -28,7 +28,7 @@ export function buildControlsHelp(farm) {
     <dt>1 – 5</dt><dd>Selectează un obiect din hotbar. Primele 5 sloturi ale inventarului apar în hotbar în aceeași ordine; trage obiectele între sloturi pentru a le organiza.</dd>
     <dt>E</dt><dd>Interacționează în apropiere: Lavinia, dropuri, ușa cârciumii sau portal.</dd>
     <dt>I</dt><dd>Deschide sau închide inventarul.</dd>
-    <dt>Esc</dt><dd>Deschide/închide meniul. Când cartea este deschisă, o închide întâi.</dd>
+    <dt>Esc</dt><dd>Închide cartea sau inventarul dacă sunt deschise. Altfel, deschide/închide meniul.</dd>
   </dl>
   <h3>Abilități</h3>
   <dl>
@@ -117,6 +117,10 @@ export function installPauseMenu(farm) {
       if (!overlay && farm.bookOpen) return;
       event.preventDefault(); event.stopImmediatePropagation();
       if (event.repeat) return;
+      if (!overlay && farm.inventoryUi && !farm.inventoryUi.classList.contains('hidden')) {
+        farm.toggleInventory(false);
+        return;
+      }
       if (overlay && infoOpen) overlay.showInfo(false);
       else if (overlay) close();
       else open();

@@ -11,6 +11,7 @@ import { tryEnterTavern, clickTavernDoor, updateTavernDoor } from './tavern-acce
 import { installPauseMenu } from './pause-menu.js';
 import { createPotionHeld, updatePotionHeld, useHealthPotion } from './health-potion.js';
 import { getSelectedItem, installInventoryDragging } from './inventory.js';
+import { equipmentPanelMarkup, updateEquipmentPanel } from './equipment-panel.js';
 import './style.css';
 import { createVillageGround, createVillageProps, createVillageTextures } from './village.js';
 import { createRushSkill, activateRush, updateRush } from './rush.js';
@@ -578,6 +579,7 @@ class FarmScene extends Phaser.Scene {
   }
 
   updateHotbarState() {
+    updateEquipmentPanel(this);
     if (!this.hotbarSlots) {
       return;
     }
@@ -624,6 +626,7 @@ class FarmScene extends Phaser.Scene {
           <h2>Inventory</h2>
           <span>Apasă I</span>
         </div>
+        ${equipmentPanelMarkup()}
         <p class="inventory-help">Trage obiectele între sloturi. Primele 5 sloturi formează hotbarul, în aceeași ordine.</p>
         <div class="inventory-list"></div>
       </div>
@@ -700,6 +703,7 @@ class FarmScene extends Phaser.Scene {
 
     const shouldOpen = typeof forceState === 'boolean' ? forceState : this.inventoryUi.classList.contains('hidden');
     this.inventoryUi.classList.toggle('hidden', !shouldOpen);
+    if (shouldOpen) updateEquipmentPanel(this);
   }
 
   selectWeapon(slotName) {
@@ -707,6 +711,7 @@ class FarmScene extends Phaser.Scene {
     if (this.npcDialogueOpen || this.chapterDialogueOpen || this.levelTransitioning) return;
     if (slotName.startsWith('slot-') && !/^slot-[1-5]$/.test(slotName)) return;
     this.selectedWeapon = slotName;
+    updateEquipmentPanel(this);
     updatePotionHeld(this);
     if (this.inventory[Number(slotName.replace('slot-', '')) - 1]?.type === 'book') openBook(this);
     this.hotbarSlots?.forEach((slot) => {
