@@ -855,3 +855,40 @@ canvas {
 .tavern-hud strong { font: 20px Georgia, serif; margin-bottom: 6px; }
 .tavern-exit { position: fixed; left: 16px; bottom: 20px; z-index: 170; padding: 11px 16px; border: 1px solid #c6a374; border-radius: 8px; background: #302219ed; color: #f3d6a6; font-weight: bold; cursor: pointer; }
 
+.pause-overlay { position: fixed; inset: 0; z-index: 1200; display: grid; place-items: center; padding: 20px; background: #070b15da; backdrop-filter: blur(8px); color: #f4ead8; font-family: Arial, sans-serif; }
+.pause-panel { width: min(620px, calc(100vw - 70px)); max-height: 84vh; overflow-y: auto; padding: 28px; border: 2px solid #bda273; border-radius: 16px; background: linear-gradient(135deg, #2a303b, #151d28); box-shadow: 0 24px 90px #0009; }
+.pause-panel header small { color: #d9bd83; font-size: 10px; letter-spacing: 0.16em; }
+.pause-panel h2 { font: 30px Georgia, serif; margin: 10px 0 26px; }
+.pause-settings label { display: flex; justify-content: space-between; font-size: 16px; }
+.pause-settings output { color: #e7c686; font-weight: bold; }
+.pause-settings input { width: 100%; margin: 20px 0 26px; accent-color: #dfbc79; cursor: pointer; }
+.pause-buttons { display: grid; gap: 12px; }
+.pause-panel button { padding: 13px 18px; border: 1px solid #a68d62; border-radius: 8px; background: #35404c; color: #f4e5c7; font-size: 14px; cursor: pointer; }
+.pause-panel button:hover { background: #475360; }
+.pause-panel .pause-resume { background: #d7b675; color: #241d16; font-weight: bold; }
+.pause-panel :focus-visible { outline: 2px solid #f2d291; outline-offset: 4px; }
+.pause-help[hidden], .pause-settings[hidden] { display: none; }
+.pause-help h3 { color: #eccb8b; font-size: 16px; margin: 25px 0 12px; }
+.pause-help dl { margin: 0; }
+.pause-help dt { margin-top: 15px; font-size: 13px; font-weight: bold; color: #ebdfc7; }
+.pause-help dd { margin: 5px 0 0; font-size: 13px; line-height: 1.6; color: #cbd2d6; }
+.pause-help ul { padding-left: 20px; font-size: 13px; line-height: 1.7; color: #cbd2d6; }
+.pause-help li { margin-bottom: 8px; }
+.pause-back { width: 100%; margin-top: 15px; }
+
+.menu-hint { position: fixed; left: 16px; top: 12px; z-index: 170; padding: 6px 11px; border: 1px solid #aa9870; border-radius: 6px; background: #17212bea; color: #ebd5a4; font: bold 11px Arial, sans-serif; cursor: pointer; }
+.quest-hud, .tavern-hud { top: 50px; }
+.gold-hud { top: 220px; }
+.player-health-hud { top: 280px; }
+
+.tavern-quest-hint { margin-top: 8px; max-width: 390px; color: #d0e4a4; line-height: 1.5; }
+.tavern-quest-dialog section { max-height: 84vh; overflow-y: auto; }
+.tavern-quest-dialog p { white-space: pre-line; }
+.tavern-choice-actions { display: grid; gap: 8px; }
+.tavern-choice-actions[hidden], .tavern-dialog-continue[hidden] { display: none; }
+.tavern-choice-actions button { margin-top: 0; text-align: left; font-size: 14px; background: #354252; color: #f7e9ce; }
+.tavern-choice-actions button:hover { background: #4a5b6d; }
+.tavern-choice-actions .tavern-choice-later { background: transparent; color: #c5bbb0; font-size: 12px; }
+.health-potion-icon { display: inline-grid; place-items: center; position: relative; width: 24px; height: 28px; border: 2px solid #efcbb3; border-radius: 6px 6px 10px 10px; background: linear-gradient(100deg, #fba9a3 0%, #cf3455 35%, #811f3e 100%); color: #fff0dc; font: bold 21px Arial, sans-serif; box-shadow: inset 3px 0 0 #ffffff40; }
+.health-potion-icon::before { content: ''; position: absolute; top: -8px; left: 6px; width: 9px; height: 6px; background: #b78b57; border: 1px solid #f1d294; border-radius: 2px; }
+

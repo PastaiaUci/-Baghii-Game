@@ -42,7 +42,7 @@ export function createRushSkill(scene) {
 }
 
 export function activateRush(scene) {
-  if (!scene.player || scene.tavernActive || scene.gameOver || scene.bookOpen || scene.npcDialogueOpen || scene.chapterDialogueOpen || scene.levelTransitioning || !scene.introOverlay.classList.contains('hidden') ||
+  if (!scene.player || scene.menuOpen || scene.tavernActive || scene.gameOver || scene.bookOpen || scene.npcDialogueOpen || scene.chapterDialogueOpen || scene.levelTransitioning || !scene.introOverlay.classList.contains('hidden') ||
       !scene.inventoryUi.classList.contains('hidden')) return;
   scene.rushSkill.activate(scene.time.now);
 }

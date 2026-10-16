@@ -21,7 +21,7 @@ export function slowMultiplier(enemy, now) {
 }
 
 function usable(scene) {
-  return !scene.tavernActive && !scene.gameOver && !scene.bookOpen && !scene.npcDialogueOpen && !scene.chapterDialogueOpen && !scene.levelTransitioning && scene.introOverlay.classList.contains('hidden') && scene.inventoryUi.classList.contains('hidden');
+  return !scene.menuOpen && !scene.tavernActive && !scene.gameOver && !scene.bookOpen && !scene.npcDialogueOpen && !scene.chapterDialogueOpen && !scene.levelTransitioning && scene.introOverlay.classList.contains('hidden') && scene.inventoryUi.classList.contains('hidden');
 }
 
 function nearbyEnemies(scene, radius) {

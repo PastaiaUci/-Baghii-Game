@@ -8,6 +8,8 @@ import { createGameAudio, unlockAudio, updateGameAudio, playSound } from './audi
 import { createVillageCombat, enrageVillage, updateEnragedVillager, updateVillageCombat, showVillageDeath } from './village-combat.js';
 import { TavernScene } from './tavern-interior.js';
 import { tryEnterTavern, clickTavernDoor, updateTavernDoor } from './tavern-access.js';
+import { installPauseMenu } from './pause-menu.js';
+import { createPotionHeld, updatePotionHeld, useHealthPotion } from './health-potion.js';
 import './style.css';
 import { createVillageGround, createVillageProps, createVillageTextures } from './village.js';
 import { createRushSkill, activateRush, updateRush } from './rush.js';
@@ -106,6 +108,7 @@ class FarmScene extends Phaser.Scene {
     createRushSkill(this);
     createSwordAura(this);
     createRewardSystem(this);
+    createPotionHeld(this);
 
     this.playerWeapon = this.add.sprite(this.player.x, this.player.y, 'sword');
     this.playerWeapon.setDepth(24);
@@ -140,6 +143,7 @@ class FarmScene extends Phaser.Scene {
 
     this.createDialogueBox();
     createGameAudio(this);
+    installPauseMenu(this);
     createVillageCombat(this);
 
     this.input.on('pointerdown', (pointer) => {
@@ -158,6 +162,10 @@ class FarmScene extends Phaser.Scene {
       if (clickChapterPortal(this, worldPoint)) return;
       if (clickBossLoot(this, worldPoint)) return;
       const selectedItem = this.inventory[Number(this.selectedWeapon.replace('slot-', '')) - 1];
+      if (selectedItem?.type === 'health-potion') {
+        useHealthPotion(this, Number(this.selectedWeapon.replace('slot-', '')) - 1);
+        return;
+      }
       if (selectedItem?.type === 'flashlight') {
         activateFlashlight(this);
         return;
@@ -219,7 +227,6 @@ class FarmScene extends Phaser.Scene {
           this.pickUpSword();
           return;
         }
-        this.toggleInventory();
       }
       if (key === 'i') this.toggleInventory();
     });
@@ -595,6 +602,9 @@ class FarmScene extends Phaser.Scene {
       } else if (item.type === 'book') {
         itemNode.className = 'hotbar-item';
         itemNode.innerHTML = '<span class="book-icon">I</span>';
+      } else if (item.type === 'health-potion') {
+        itemNode.className = 'hotbar-item';
+        itemNode.innerHTML = '<span class="health-potion-icon">+</span>';
       } else {
         itemNode.className = 'hotbar-item hotbar-empty';
         itemNode.innerHTML = '';
@@ -609,7 +619,7 @@ class FarmScene extends Phaser.Scene {
       <div class="inventory-panel">
         <div class="inventory-header">
           <h2>Inventory</h2>
-          <span>Press E</span>
+          <span>Apasă I</span>
         </div>
         <div class="inventory-list"></div>
       </div>
@@ -619,6 +629,7 @@ class FarmScene extends Phaser.Scene {
     this.inventoryList.addEventListener('click', (event) => {
       const slot = event.target.closest('[data-inventory-index]');
       if (slot && this.inventory[Number(slot.dataset.inventoryIndex)]?.type === 'book') openBook(this);
+      if (slot && this.inventory[Number(slot.dataset.inventoryIndex)]?.type === 'health-potion') useHealthPotion(this, Number(slot.dataset.inventoryIndex));
     });
     this.inventoryList.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' || event.key === ' ') {
@@ -626,6 +637,10 @@ class FarmScene extends Phaser.Scene {
         if (slot && this.inventory[Number(slot.dataset.inventoryIndex)]?.type === 'book') {
           event.preventDefault();
           openBook(this);
+        }
+        if (slot && this.inventory[Number(slot.dataset.inventoryIndex)]?.type === 'health-potion') {
+          event.preventDefault();
+          useHealthPotion(this, Number(slot.dataset.inventoryIndex));
         }
       }
     });
@@ -659,10 +674,10 @@ class FarmScene extends Phaser.Scene {
                 <span class="coupon-ticket"></span>
               </div>
             `
-            : item.type === 'flashlight' ? '<span class="flashlight-icon"></span>' : item.type === 'book' ? '<span class="book-icon">I</span>' : '';
+            : item.type === 'flashlight' ? '<span class="flashlight-icon"></span>' : item.type === 'book' ? '<span class="book-icon">I</span>' : item.type === 'health-potion' ? '<span class="health-potion-icon">+</span>' : '';
 
         return `
-          <div class="inventory-slot ${item.type === 'empty' ? 'empty' : ''}" data-inventory-index="${index}" ${item.type === 'book' ? 'role="button" tabindex="0"' : ''} title="${item.label}">
+          <div class="inventory-slot ${item.type === 'empty' ? 'empty' : ''}" data-inventory-index="${index}" ${['book', 'health-potion'].includes(item.type) ? 'role="button" tabindex="0"' : ''} title="${item.label}">
             ${content}
             <span class="slot-number">${index + 1}</span>
           </div>
@@ -684,6 +699,7 @@ class FarmScene extends Phaser.Scene {
     if (this.tavernActive) return;
     if (this.npcDialogueOpen || this.chapterDialogueOpen || this.levelTransitioning) return;
     this.selectedWeapon = slotName;
+    updatePotionHeld(this);
     if (this.inventory[Number(slotName.replace('slot-', '')) - 1]?.type === 'book') openBook(this);
     this.hotbarSlots?.forEach((slot) => {
       slot.classList.toggle('active', slot.dataset.slot === slotName);
@@ -1419,6 +1435,7 @@ class FarmScene extends Phaser.Scene {
   update() {
     if (this.npcDialogueOpen) return;
     if (this.gameOver) {
+      updatePotionHeld(this);
       updateRush(this);
       updateRewards(this);
       updateSwordAura(this);
@@ -1508,6 +1525,7 @@ class FarmScene extends Phaser.Scene {
     }
     updateSwordAura(this);
 
+    updatePotionHeld(this);
     if (this.playerCoupon) {
       const selectedSlotIndex = Number(this.selectedWeapon.replace('slot-', '')) - 1;
       const selectedItem = this.inventory[selectedSlotIndex] || { type: 'empty' };

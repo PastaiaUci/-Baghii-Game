@@ -5,14 +5,32 @@ export function createGameAudio(scene) {
   button.textContent = 'Sunet: pornit';
   button.title = 'Pornește sau oprește sunetele jocului';
   scene.audioEnabled = true;
+  scene.audioVolume = 0.7;
+  scene.audioToggleButton = button;
   button.addEventListener('click', () => {
     scene.audioEnabled = !scene.audioEnabled;
-    button.textContent = scene.audioEnabled ? 'Sunet: pornit' : 'Sunet: oprit';
-    button.setAttribute('aria-pressed', String(scene.audioEnabled));
+    if (scene.audioEnabled && !scene.audioVolume) scene.audioVolume = 0.7;
+    syncAudioVolume(scene);
     if (scene.audioEnabled) unlockAudio(scene);
   });
   document.body.appendChild(button);
+  syncAudioVolume(scene);
   scene.events.once('shutdown', () => { button.remove(); scene.gameAudio?.close(); });
+}
+
+export function syncAudioVolume(scene) {
+  const volume = scene.audioEnabled ? scene.audioVolume : 0;
+  if (scene.audioMaster) scene.audioMaster.gain.setValueAtTime(volume, scene.gameAudio.currentTime);
+  if (scene.audioToggleButton) {
+    scene.audioToggleButton.textContent = volume > 0 ? `Sunet: ${Math.round(volume * 100)}%` : 'Sunet: oprit';
+    scene.audioToggleButton.setAttribute('aria-pressed', String(volume > 0));
+  }
+}
+
+export function setAudioVolume(scene, volume) {
+  scene.audioVolume = Math.max(0, Math.min(1, Number(volume) || 0));
+  scene.audioEnabled = scene.audioVolume > 0;
+  syncAudioVolume(scene);
 }
 
 export function unlockAudio(scene) {
@@ -20,6 +38,11 @@ export function unlockAudio(scene) {
   if (!Context) return;
   try {
     scene.gameAudio ||= new Context();
+    if (!scene.audioMaster) {
+      scene.audioMaster = scene.gameAudio.createGain();
+      scene.audioMaster.connect(scene.gameAudio.destination);
+      syncAudioVolume(scene);
+    }
     scene.gameAudio.resume().catch(() => {});
   } catch { /* Gameplay remains available without audio support. */ }
 }
@@ -48,7 +71,7 @@ export function playSound(scene, type) {
   gain.gain.setValueAtTime(0.001, now);
   gain.gain.linearRampToValueAtTime(volume, now + 0.008);
   gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-  oscillator.connect(gain); gain.connect(context.destination);
+  oscillator.connect(gain); gain.connect(scene.audioMaster || context.destination);
   oscillator.start(); oscillator.stop(now + duration + 0.02);
   oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
 }
@@ -59,11 +82,5 @@ export function updateGameAudio(scene) {
   if (scene.player.body.speed > 20 && now >= (scene.nextStepSound || 0)) {
     scene.nextStepSound = now + 290;
     playSound(scene, 'step');
-  }
-  if (!scene.bossRoomActive && scene.currentLevel !== 2 && now >= (scene.nextAmbientSound || 0)) {
-    scene.nextAmbientSound = now + 2600 + Math.random() * 2400;
-    const nearAnimal = scene.animals?.find(({ sprite }) => Math.hypot(sprite.x - scene.player.x, sprite.y - scene.player.y) < 230);
-    if (Math.hypot(scene.player.x - 430, scene.player.y - 330) < 240 && Math.random() < 0.5) playSound(scene, 'clink');
-    else playSound(scene, nearAnimal?.kind || 'bird');
   }
 }

@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { showNpcDialogue, hideNpcDialogue } from './dialogue.js';
 import { playSound } from './audio.js';
 import { shiftVillageTimers } from './tavern-access.js';
+import { getTavernQuest, updateTavernQuestHint, talkToTavernNpc, startSnikuWalk, addSnikuBeer } from './tavern-quest.js';
 
 export class TavernScene extends Phaser.Scene {
   constructor() { super('TavernScene'); }
@@ -12,6 +13,8 @@ export class TavernScene extends Phaser.Scene {
     this.npcDialogueOpen = false;
     this.nextClinkAt = 0;
     this.nextStepAt = 0;
+    this.wakeWalkPending = false;
+    this.snikuWalking = false;
   }
 
   create() {
@@ -34,6 +37,11 @@ export class TavernScene extends Phaser.Scene {
     this.hint.className = 'tavern-hud';
     this.hint.innerHTML = '<strong>Cârciuma Bețivilor</strong><span>Click pe personaje pentru dialog · E lângă ușă pentru a ieși</span>';
     document.body.appendChild(this.hint);
+    this.questHint = document.createElement('span');
+    this.questHint.className = 'tavern-quest-hint';
+    this.hint.appendChild(this.questHint);
+    updateTavernQuestHint(this);
+    if (getTavernQuest(this.farm).status === 'walking') startSnikuWalk(this);
     this.exitButton = document.createElement('button');
     this.exitButton.className = 'tavern-exit';
     this.exitButton.textContent = 'Înapoi în sat →';
@@ -51,7 +59,7 @@ export class TavernScene extends Phaser.Scene {
     });
   }
 
-  solid(x, y, w, h) { this.solids.add(this.add.zone(x, y, w, h)); }
+  solid(x, y, w, h) { const zone = this.add.zone(x, y, w, h); this.solids.add(zone); return zone; }
 
   drawRoom() {
     const g = this.add.graphics();
@@ -105,16 +113,23 @@ export class TavernScene extends Phaser.Scene {
       ['Sniku', 'tavern-sniku', 686, 442, 0x211e26, 0x745579, 'Sunt mort de beat și drogat… lăsați-mă puțin pe jos.'],
     ];
     this.npcPortraits = {};
+    this.tavernVisitors = {};
+    const quest = getTavernQuest(this.farm);
     specs.forEach(([name, key, x, y, hair, shirt, line], index) => {
+      const awake = name === 'Sniku' && ['walking', 'ready', 'completed'].includes(quest.status);
+      if (awake) { x = quest.position?.x ?? 680; y = quest.position?.y ?? 218; }
       if (!this.textures.exists(key)) this.farm.createNpcTexture(key, hair, shirt, 0xe2b490, 0xa98b61);
       this.npcPortraits[name] = this.textures.getBase64(key);
       const sprite = this.add.sprite(0, 0, key).setInteractive({ useHandCursor: true });
       const group = this.add.container(x, y, [sprite]);
       group.setDepth(10 + (y + 20) / 100);
+      let zone;
       if (name === 'Sniku') {
-        sprite.setRotation(Math.PI / 2).setScale(1.2);
-        this.tweens.add({ targets: group, y: y + 1.5, duration: 1800, yoyo: true, repeat: -1 });
-        this.solid(x, y + 4, 42, 14);
+        if (!awake) {
+          sprite.setRotation(Math.PI / 2).setScale(1.2);
+          this.tweens.add({ targets: group, y: y + 1.5, duration: 1800, yoyo: true, repeat: -1 });
+        }
+        zone = this.solid(x, y + (awake ? 14 : 4), 42, 14);
       } else {
         const mug = this.add.graphics().setPosition(16, 4);
         mug.fillStyle(0xd9a33f).fillRoundedRect(-4, -8, 9, 13, 2);
@@ -123,24 +138,27 @@ export class TavernScene extends Phaser.Scene {
         group.add(mug);
         this.tweens.add({ targets: group, angle: index ? -7 : 7, duration: 1500 + index * 300, yoyo: true, repeat: -1 });
         this.tweens.add({ targets: mug, y: -7, duration: 1000 + index * 400, yoyo: true, repeat: -1, hold: 900 });
-        this.solid(x, y + 14, 18, 12);
+        zone = this.solid(x, y + 14, 18, 12);
       }
       const label = this.add.text(x, y - (name === 'Sniku' ? 26 : 34), name, {
         fontFamily: 'Arial', fontSize: '12px', color: '#ffe1ac', stroke: '#281e1b', strokeThickness: 3,
       }).setOrigin(0.5).setDepth(30).setInteractive({ useHandCursor: true });
-      const talk = () => { if (!this.npcDialogueOpen && !this.leaving) showNpcDialogue(this, name, line); };
+      this.tavernVisitors[name] = { sprite, group, zone, label };
+      if (name === 'Sniku' && ['ready', 'completed'].includes(quest.status)) addSnikuBeer(this);
+      const talk = () => { if (!this.npcDialogueOpen && !this.leaving) talkToTavernNpc(this, name, line); };
       sprite.on('pointerdown', talk); label.on('pointerdown', talk);
     });
   }
 
   createDialogue() {
     this.dialogBox = document.createElement('div');
-    this.dialogBox.className = 'chapter-dialogue npc-modal hidden'; this.dialogBox.hidden = true;
-    this.dialogBox.innerHTML = '<section role="dialog" aria-modal="true" aria-labelledby="tavern-speaker"><img class="npc-dialog-portrait" alt=""><div><small class="npc-dialog-kicker">CONVERSAȚIE</small><h2 id="tavern-speaker" class="npc-dialog-name"></h2><p class="npc-dialog-text"></p><button type="button">Continuă →</button></div></section>';
+    this.dialogBox.className = 'chapter-dialogue npc-modal tavern-quest-dialog hidden'; this.dialogBox.hidden = true;
+    this.dialogBox.innerHTML = '<section role="dialog" aria-modal="true" aria-labelledby="tavern-speaker"><img class="npc-dialog-portrait" alt=""><div><small class="npc-dialog-kicker">CONVERSAȚIE</small><h2 id="tavern-speaker" class="npc-dialog-name"></h2><p class="npc-dialog-text"></p><div class="tavern-choice-actions" hidden></div><button type="button" class="tavern-dialog-continue">Continuă →</button></div></section>';
     this.dialogName = this.dialogBox.querySelector('.npc-dialog-name');
     this.dialogText = this.dialogBox.querySelector('.npc-dialog-text');
-    this.dialogOkButton = this.dialogBox.querySelector('button');
-    this.dialogOkButton.addEventListener('click', () => hideNpcDialogue(this));
+    this.dialogChoices = this.dialogBox.querySelector('.tavern-choice-actions');
+    this.dialogOkButton = this.dialogBox.querySelector('.tavern-dialog-continue');
+    this.dialogOkButton.addEventListener('click', () => { hideNpcDialogue(this); if (this.wakeWalkPending) startSnikuWalk(this); });
     document.body.appendChild(this.dialogBox);
   }
 
@@ -160,7 +178,6 @@ export class TavernScene extends Phaser.Scene {
     this.player.setTexture(dx || dy ? this.farm.player.walkFrames[Math.floor(this.time.now / 140) % 3] : 'player');
     this.player.setDepth(10 + (this.player.y + 18) / 100);
     if ((dx || dy) && this.time.now >= this.nextStepAt) { this.nextStepAt = this.time.now + 290; playSound(this.farm, 'step'); }
-    if (this.time.now >= this.nextClinkAt) { this.nextClinkAt = this.time.now + 2500 + Math.random() * 2000; playSound(this.farm, 'clink'); }
     this.exitLabel.setText(Math.hypot(this.player.x - 480, this.player.y - 550) < 80 ? 'E · Înapoi în sat' : 'IEȘIRE · SAT');
   }
 }
