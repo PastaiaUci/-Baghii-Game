@@ -13,7 +13,7 @@ export function initializeStats(scene) {
 }
 export function effectiveStats(scene) {
   const values = { ...BASE_STATS, ...scene.characterStats };
-  const items = new Set([scene.equippedHelmet, scene.equippedBoots, scene.equippedShield, ...Object.values(scene.equipment || {})]);
+  const items = new Set([scene.equippedHelmet, scene.equippedBoots, scene.equippedShield, scene.equippedArmor, ...Object.values(scene.equipment || {})]);
   for (const item of items) {
     for (const [key, amount] of Object.entries(item?.statBonuses || {})) {
       if (key in values && Number.isFinite(amount)) values[key] += amount;
@@ -42,6 +42,12 @@ export function syncCharacterStats(scene) {
 export function grantStatPoints(scene, count) {
   if (!Number.isSafeInteger(count) || count <= 0) return false;
   initializeStats(scene); scene.statPoints += count; return true;
+}
+export function grantTeteVictoryPoints(scene) {
+  if (scene.teteStatPointsGranted) return false;
+  grantStatPoints(scene, 3);
+  scene.teteStatPointsGranted = true;
+  return true;
 }
 export function spendStatPoint(scene, stat) {
   initializeStats(scene);

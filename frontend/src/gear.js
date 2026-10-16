@@ -4,10 +4,17 @@ export const EXTRA_GEAR = {
   'wind-boots': { type: 'wind-boots', slot: 'boots', name: 'Papuci de Vânt', price: 350, stat: '+25% viteză de mișcare', description: 'Mai ușor pe drum, mai rapid în luptă. Bonusul se combină cu Iureș.', details: ['Se echipează în slotul de cizme.', 'Bonus activ doar cât sunt echipați.'], icon: 'boots-icon' },
   shield: { type: 'shield', slot: 'shield', name: 'Scut de fier', price: 300, stat: '50 puncte de rezistență', description: 'Ține apăsat click dreapta pentru a bloca damage. La 0 rezistență, scutul se sparge și dispare.', details: ['Absoarbe până la 50 damage în total.', 'Damage-ul care depășește rezistența trece mai departe.', 'Se echipează în slotul de scut.'], icon: 'shield-icon' },
 };
+export function isGearInStock(scene, type) {
+  if (!EXTRA_GEAR[type] || scene.currentLevel !== 2) return false;
+  const equipped = type === 'shield' ? scene.equippedShield : scene.equippedBoots;
+  if (equipped || scene.inventory.some((item) => item.type === type)) return false;
+  // A broken shield is consumed, so a replacement can be bought.
+  return type === 'shield' || !scene.shopGearSold?.[type];
+}
 export function buyGear(scene, type) {
   const gear = EXTRA_GEAR[type];
   if (!gear || scene.currentLevel !== 2) return 'Acest obiect este disponibil doar în mapa 2.';
-  if (scene.shopGearSold?.[type]) return 'Acest obiect a fost deja vândut.';
+  if (!isGearInStock(scene, type)) return 'Ai deja acest obiect sau a fost vândut.';
   if (scene.gold < gear.price) return `Ai nevoie de ${gear.price} gold.`;
   const slot = scene.inventory.findIndex(({ type }) => type === 'empty');
   if (slot < 0) return 'Inventarul este plin.';
@@ -18,9 +25,9 @@ export function buyGear(scene, type) {
   return `Ai cumpărat ${gear.name}. Îl poți echipa din inventar.`;
 }
 export function toggleGear(scene, item) {
-  const gear = EXTRA_GEAR[item?.type];
+  const gear = EXTRA_GEAR[item?.type] || (item?.type === 'winter-coat' ? { slot: 'armor' } : null);
   if (!gear) return false;
-  const property = gear.slot === 'boots' ? 'equippedBoots' : 'equippedShield';
+  const property = gear.slot === 'boots' ? 'equippedBoots' : gear.slot === 'armor' ? 'equippedArmor' : 'equippedShield';
   if (scene[property] === item) {
     const slot = scene.inventory.findIndex(({ type }) => type === 'empty');
     if (slot < 0) {
@@ -43,8 +50,8 @@ export function isShieldBlocking(scene) {
   return Boolean(scene.equippedShield?.durability > 0 && !scene.menuOpen && !scene.npcDialogueOpen && !scene.bookOpen && !scene.chapterDialogueOpen && !scene.levelTransitioning && !scene.gameOver && !scene.tavernActive &&
     (!scene.inventoryUi || scene.inventoryUi.classList.contains('hidden')) && scene.input?.activePointer?.rightButtonDown());
 }
-export function absorbShieldDamage(scene, damage) {
-  if (!isShieldBlocking(scene)) return damage;
+export function absorbShieldDamage(scene, damage, blockingOverride) {
+  if (!(blockingOverride ?? isShieldBlocking(scene)) || !scene.equippedShield) return damage;
   const shield = scene.equippedShield;
   const blocked = Math.min(damage, shield.durability);
   shield.durability -= blocked;
@@ -58,6 +65,12 @@ export function absorbShieldDamage(scene, damage) {
 }
 export function drawExtraGear(ctx, scene, x, y, scale = 1) {
   ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale);
+  if (scene.equippedArmor?.type === 'winter-coat') {
+    ctx.fillStyle = '#594779'; ctx.fillRect(5, 21, 23, 11);
+    ctx.fillStyle = '#a18bb3'; ctx.fillRect(7, 22, 4, 8);
+    ctx.fillStyle = '#e6e0cb'; ctx.fillRect(8, 20, 17, 3); ctx.fillRect(6, 30, 21, 2);
+    ctx.fillStyle = '#dab96e'; ctx.fillRect(16, 23, 1, 7);
+  }
   if (scene.equippedBoots) {
     ctx.fillStyle = '#578e8e'; ctx.fillRect(8, 34, 8, 5); ctx.fillRect(17, 34, 8, 5);
     ctx.fillStyle = '#c5e8cf'; ctx.fillRect(9, 34, 5, 1); ctx.fillRect(18, 34, 5, 1);
@@ -79,7 +92,7 @@ export function createGearVisual(scene, owner = scene) {
     const player = scene.player;
     const visible = Boolean(player?.visible && !scene.tavernActive);
     const ctx = texture.getContext(); ctx.clearRect(0, 0, 32, 40); drawExtraGear(ctx, owner, 0, 0); texture.refresh();
-    visual.setVisible(visible && Boolean(owner.equippedBoots || owner.equippedShield));
+    visual.setVisible(visible && Boolean(owner.equippedBoots || owner.equippedShield || owner.equippedArmor));
     if (!player) return;
     const blocking = isShieldBlocking(owner);
     visual.setPosition(player.x + (blocking ? 4 : 0), player.y).setDepth(player.depth + 0.06);

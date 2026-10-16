@@ -37,6 +37,7 @@ export function applyHealthPotion(scene, slot) {
 }
 
 export function useHealthPotion(scene, slot) {
+  if (scene.houseActive) return scene.activeHouse?.usePotion(slot) || false;
   if (scene.menuOpen || scene.tavernActive || scene.gameOver || scene.bookOpen || scene.npcDialogueOpen || scene.chapterDialogueOpen || scene.levelTransitioning) return false;
   if (scene.inventory[slot]?.type !== 'health-potion') return false;
   const restored = applyHealthPotion(scene, slot);

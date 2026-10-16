@@ -33,7 +33,7 @@ export function installStatsPanel(farm) {
   button.addEventListener('click', () => {
     if (overlay) { close(); return; }
     if (farm.menuOpen || farm.bookOpen || farm.gameOver || farm.chapterDialogueOpen || farm.npcDialogueOpen || farm.levelTransitioning || !farm.introOverlay.classList.contains('hidden')) return;
-    paused = farm.scene.isActive('TavernScene') ? farm.scene.get('TavernScene') : farm;
+    paused = farm.scene.isActive('MiganHouseScene') ? farm.scene.get('MiganHouseScene') : farm.scene.isActive('TavernScene') ? farm.scene.get('TavernScene') : farm;
     if (paused.npcDialogueOpen) return;
     previousFocus = document.activeElement; started = farm.game.loop.now; farm.statsOpen = true;
     paused.player?.setVelocity(0, 0); paused.input.keyboard.resetKeys(); paused.scene.pause();

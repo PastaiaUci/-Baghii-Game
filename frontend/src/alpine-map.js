@@ -1,3 +1,5 @@
+import { createAlpineVillagers } from './alpine-villagers.js';
+
 export const ALPINE_GOLD = [
   [280, 610], [390, 610], [520, 620], [680, 615], [810, 610], [970, 620],
   [1150, 610], [1370, 615], [810, 480], [800, 360], [810, 760], [800, 920],
@@ -83,6 +85,10 @@ export function createAlpineMap(scene) {
     solid(x, base - 30, 136, 60);
   };
   chalet(370, 460); chalet(1130, 490, true); chalet(1100, 975); chalet(420, 1020, true);
+  const miganLabel = scene.add.text(420, 1044, '', { fontFamily: 'Arial', fontSize: '10px', color: '#fff0bf', stroke: '#344657', strokeThickness: 3 }).setOrigin(0.5).setDepth(30);
+  const updateMiganDoor = () => miganLabel.setText(scene.winterQuest && scene.winterQuest.status !== 'blocked' ? 'Casa lui Miganul · E' : 'Casa lui Miganul');
+  scene.events.on('update', updateMiganDoor); updateMiganDoor();
+  scene.events.once('shutdown', () => scene.events.off('update', updateMiganDoor));
 
   // Frozen mountain lake, with a stepped shoreline collider.
   ground.fillStyle(0xf8fbf7).fillRoundedRect(1240, 755, 220, 258, 64);
@@ -122,6 +128,7 @@ export function createAlpineMap(scene) {
     g.fillStyle(0xf9f6e9).fillTriangle(x - 10, y - 52, x + 10, y - 52, x, y - 59);
     solid(x, y, 7, 7);
   }
+  createAlpineVillagers(scene);
   createSnowfall(scene);
 }
 

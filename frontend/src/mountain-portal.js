@@ -1,3 +1,5 @@
+import { attemptMountainPortal } from './winter-quest.js';
+
 export function createMountainPortal(scene) {
   if (scene.mountainPortal || scene.luisQuest?.status !== 'completed') return false;
   const x = 800, y = 330;
@@ -9,6 +11,8 @@ export function createMountainPortal(scene) {
   // Scenery only: no interaction zone, transition or teleport handler.
   const update = () => {
     const t = (scene.time.now || 0) / 700;
+    if (!scene.winterQuest && scene.player && Math.hypot(scene.player.x - x, scene.player.y - y) < 42) attemptMountainPortal(scene);
+    label.setText(scene.equippedArmor?.type === 'winter-coat' ? 'Portal spre munți · Echipat pentru frig' : scene.winterQuest ? 'Portal spre munți · E' : 'Portal spre munți');
     graphic.clear();
     graphic.fillStyle(0x72d4ee, 0.16).fillEllipse(x, y + 16, 95, 27);
     graphic.fillStyle(0x293e66, 0.95).fillEllipse(x, y - 15, 52, 77);

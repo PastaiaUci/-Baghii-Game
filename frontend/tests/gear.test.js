@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buyGear, toggleGear, movementMultiplier, absorbShieldDamage } from '../src/gear.js';
+import { buyGear, toggleGear, movementMultiplier, absorbShieldDamage, isGearInStock } from '../src/gear.js';
 
 const scene = () => ({ currentLevel: 2, gold: 1000, inventory: [{ type: 'empty' }, { type: 'empty' }], input: { activePointer: { rightButtonDown: () => true } }, updateGoldHud() {}, updateInventoryList() {}, updateHotbarState() {} });
 test('map two sells boots for 350 and shield for 300 once; other maps cannot buy', () => {
@@ -31,4 +31,13 @@ test('full inventory prevents purchase or unequipping and menus cannot block hit
   assert.equal(s.equippedShield, shield);
   s.menuOpen = true; assert.equal(absorbShieldDamage(s, 4), 4); assert.equal(shield.durability, 50);
   buyGear(s, 'wind-boots'); assert.equal(s.gold, 700);
+});
+test('shield is available in level two, hidden while owned, and restocks after breaking', () => {
+  const s = scene(); assert.equal(isGearInStock(s, 'shield'), true);
+  buyGear(s, 'shield'); const shield = s.inventory[0];
+  assert.equal(isGearInStock(s, 'shield'), false);
+  toggleGear(s, shield); assert.equal(isGearInStock(s, 'shield'), false);
+  absorbShieldDamage(s, 50); assert.equal(isGearInStock(s, 'shield'), true);
+  buyGear(s, 'shield'); assert.equal(s.inventory[0].durability, 50); assert.equal(s.gold, 400);
+  s.currentLevel = 1; assert.equal(isGearInStock(s, 'shield'), false);
 });

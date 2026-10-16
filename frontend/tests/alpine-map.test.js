@@ -11,7 +11,7 @@ const graphics = () => {
 test('alpine map has 700 gold in eighteen pickups, reachable around its colliders', () => {
   const bodies = [];
   const scene = {
-    add: { graphics, zone: (x, y, width, height) => ({ body: { left: x - width / 2, right: x + width / 2, top: y - height / 2, bottom: y + height / 2 } }) },
+    add: { graphics, text: graphics, zone: (x, y, width, height) => ({ body: { left: x - width / 2, right: x + width / 2, top: y - height / 2, bottom: y + height / 2 } }) },
     physics: { add: { staticGroup: () => ({ add: ({ body }) => bodies.push(body) }) } },
     cameras: { main: { width: 960, height: 640, zoom: 1.4 } }, time: { now: 0 }, events: { on() {}, once() {} },
   };

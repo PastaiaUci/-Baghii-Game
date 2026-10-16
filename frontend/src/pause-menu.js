@@ -75,7 +75,7 @@ export function installPauseMenu(farm) {
   };
   const open = () => {
     if (overlay) return;
-    pausedScene = farm.scene.isActive('TavernScene') ? farm.scene.get('TavernScene') : farm;
+    pausedScene = farm.scene.isActive('MiganHouseScene') ? farm.scene.get('MiganHouseScene') : farm.scene.isActive('TavernScene') ? farm.scene.get('TavernScene') : farm;
     oldFocus = document.activeElement;
     startedAt = farm.game.loop.now;
     farm.menuOpen = true;

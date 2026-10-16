@@ -34,7 +34,7 @@ test('ten varied stones and all base gold remain reachable around mountain obsta
   assert.deepEqual(METIN_TYPES.map(({ name }) => name), ['Piatra Diavolului', 'Piatra Geloziei', 'Piatra Pulii']);
   assert.equal(new Set(METIN_TYPES.map(({ texture }) => texture)).size, 3);
   const bodies = [];
-  createAlpineMap({ add: { graphics: chain, zone: (x, y, w, h) => ({ body: { left: x - w / 2, right: x + w / 2, top: y - h / 2, bottom: y + h / 2 } }) }, physics: { add: { staticGroup: () => ({ add: ({ body }) => bodies.push(body) }) } }, cameras: { main: {} }, time: {}, events: { on() {}, once() {} } });
+  createAlpineMap({ add: { graphics: chain, text: chain, zone: (x, y, w, h) => ({ body: { left: x - w / 2, right: x + w / 2, top: y - h / 2, bottom: y + h / 2 } }) }, physics: { add: { staticGroup: () => ({ add: ({ body }) => bodies.push(body) }) } }, cameras: { main: {} }, time: {}, events: { on() {}, once() {} } });
   for (const [x, y] of METIN_LOCATIONS) {
     assert.ok(findPartyPath({ x: 210, y: 600 }, { x, y }, { x: 32, y: 44, width: 1536, height: 1124 }, bodies).length, `Unreachable stone ${x},${y}`);
     bodies.push({ left: x - 14, right: x + 14, top: y - 15, bottom: y + 7 });

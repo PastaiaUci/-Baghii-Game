@@ -1,5 +1,6 @@
 import { showNpcDialogue, hideNpcDialogue } from './dialogue.js';
 import { startLuisQuest, updateLuisQuestHint, completeLuisQuest, revealBobitaTrail } from './luis-quest.js';
+import { handleWinterLuis } from './winter-quest.js';
 
 export const LUIS_CONVERSATION = [
   ['Gdolf', 'Măria Ta, îl caut pe Bobiță… Mr. Grain. L-ai văzut pe aici?'],
@@ -52,6 +53,7 @@ export function createEmperorLuis(scene) {
 export function clickEmperorLuis(scene, point) {
   const npc = scene.emperorLuis;
   if (scene.currentLevel !== 2 || !npc?.visible || Math.abs(point.x - npc.x) > 32 || point.y < npc.y - 102 || point.y > npc.y + 12) return false;
+  if (handleWinterLuis(scene)) return true;
   if (scene.luisQuest) {
     if (completeLuisQuest(scene)) {
       scene.luisRewardPending = true;

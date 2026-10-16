@@ -93,7 +93,7 @@ export function showLevelOneTitle(scene) {
 export function showLevelComplete(scene) {
   const overlay = document.createElement('div');
   overlay.className = 'level-complete';
-  overlay.innerHTML = '<div class="complete-emblem">I</div><small>VICTORIE</small><strong>Level 1 – Complete</strong><span>Cartea primită · Tete s-a alăturat party-ului</span>';
+  overlay.innerHTML = '<div class="complete-emblem">I</div><small>VICTORIE</small><strong>Level 1 – Complete</strong><span>+3 puncte de status · Cartea primită · Tete s-a alăturat party-ului</span>';
   document.body.appendChild(overlay);
   scene.time.delayedCall(3200, () => overlay.remove());
   scene.events.once('shutdown', () => overlay.remove());

@@ -3,7 +3,7 @@ import { damageMetinMob } from './metin-stones.js';
 export function chooseTeteTarget(scene) {
   const tete = scene.partyTete;
   if (scene.currentLevel !== 2 || !tete?.active || !tete.visible || scene.partyTeteSleeping || scene.partyTeteHealth <= 0) return null;
-  return (scene.metinMobs || []).filter((mob) => mob.alive && Math.hypot(mob.sprite.x - tete.x, mob.sprite.y - tete.y) <= 310)
+  return (scene.companionEnemies || scene.metinMobs || []).filter((mob) => mob.alive && Math.hypot(mob.sprite.x - tete.x, mob.sprite.y - tete.y) <= 310)
     .sort((a, b) => Math.hypot(a.sprite.x - tete.x, a.sprite.y - tete.y) - Math.hypot(b.sprite.x - tete.x, b.sprite.y - tete.y))[0] || null;
 }
 
@@ -30,7 +30,9 @@ export function updatePartyCombat(scene) {
     const dx = shot.target.sprite.x - shot.sprite.x, dy = shot.target.sprite.y - shot.sprite.y;
     const distance = Math.hypot(dx, dy), step = 270 * dt / 1000;
     if (distance < step + 12) {
-      damageMetinMob(scene, shot.target, 3); shot.sprite.destroy(); return false;
+      if (scene.damageCompanionTarget) scene.damageCompanionTarget(shot.target, 3);
+      else damageMetinMob(scene, shot.target, 3);
+      shot.sprite.destroy(); return false;
     }
     const x = shot.sprite.x + dx / distance * step, y = shot.sprite.y + dy / distance * step;
     const blocked = scene.level2Solids.getChildren().some(({ body }) => body && body.enable !== false && x > body.left && x < body.right && y > body.top && y < body.bottom);

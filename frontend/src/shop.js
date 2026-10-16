@@ -1,7 +1,7 @@
 import { showNpcDialogue } from './dialogue.js';
 import { buyHelmet } from './armor.js';
 import { drawShopBuilding } from './shop-art.js';
-import { EXTRA_GEAR, buyGear } from './gear.js';
+import { EXTRA_GEAR, buyGear, isGearInStock } from './gear.js';
 import { CONSUMABLES, buyConsumable } from './consumables.js';
 
 function openShop(scene, owner) {
@@ -15,7 +15,7 @@ function openShop(scene, owner) {
   const render = () => {
     panel.querySelector('.shop-wallet').textContent = `${owner.gold} GOLD`;
     const helmet = { type: 'helmet', name: 'Cască de fier', price: 200, stat: '+5 puncte de armură', description: 'Absoarbe primele 5 puncte de damage înainte să-ți scadă viața.', details: ['Se echipează în slotul de cască.', 'Armura consumată nu se reface prin reechipare.'], icon: 'helmet-icon' };
-    const products = [helmet, ...(owner.currentLevel === 2 ? [...Object.values(EXTRA_GEAR), ...Object.values(CONSUMABLES)] : [])].filter((item) => CONSUMABLES[item.type] || (item.type === 'helmet' ? !(owner.shopHelmetSold || owner.equippedHelmet || owner.inventory.some(({ type }) => type === 'helmet')) : !owner.shopGearSold?.[item.type]));
+    const products = [...(owner.currentLevel === 2 ? [EXTRA_GEAR.shield, EXTRA_GEAR['wind-boots']] : []), helmet, ...(owner.currentLevel === 2 ? Object.values(CONSUMABLES) : [])].filter((item) => CONSUMABLES[item.type] || (item.type === 'helmet' ? !(owner.shopHelmetSold || owner.equippedHelmet || owner.inventory.some(({ type }) => type === 'helmet')) : isGearInStock(owner, item.type)));
     const catalog = panel.querySelector('.shop-catalog');
     catalog.innerHTML = products.length ? products.map((item) => `<article class="shop-product"><div class="shop-product-art"><span class="${item.icon}">${item.type === 'revival-beer' ? '🍺' : item.type === 'health-potion' ? '+' : ''}</span><span class="shop-item-rarity">${CONSUMABLES[item.type] ? 'CONSUMABIL' : 'ECHIPAMENT'}</span></div><div class="shop-product-details"><small>MOZAIC · ${CONSUMABLES[item.type] ? 'CONSUMABILE' : 'ECHIPAMENT'}</small><h3>${item.name}</h3><span class="shop-stat">◆ ${item.stat}</span><p>${item.description}</p><ul>${item.details.map((detail) => `<li>${detail}</li>`).join('')}</ul><footer><strong>${item.price} <small>GOLD</small></strong><button type="button" data-buy="${item.type}">Cumpără</button></footer></div></article>`).join('') : '<div class="shop-empty"><span>◇</span><strong>Marfa s-a vândut!</strong><p>Ai cumpărat toate produsele disponibile.</p></div>';
     catalog.querySelectorAll('[data-buy]').forEach((button) => button.addEventListener('click', () => {

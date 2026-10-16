@@ -3,10 +3,12 @@ import { clearBossAttacks, updatePlayerHealth } from './boss.js';
 import { joinParty, giveVictoryBook } from './completion.js';
 import { grantBossReward } from './rewards.js';
 import { createChapterPortal, enterLevelTwo } from './chapter-two.js';
+import { grantTeteVictoryPoints } from './character-stats.js';
 
 export function prepareLevelTwoTestState(scene, reward) {
   if (!['beer', 'sperma'].includes(reward)) return false;
   scene.testCheckpointUsed = true;
+  grantTeteVictoryPoints(scene);
   scene.hasCoupon = true; scene.abgPicked = true; scene.missionKillVillagers = true;
   scene.villageEnraged = false; scene.gameOver = false;
   scene.gold = 1000;

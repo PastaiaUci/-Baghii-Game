@@ -1,4 +1,5 @@
 export function questMapInfo(scene) {
+  if (scene.sys?.settings?.key === 'MiganHouseScene') return { x: 80, y: 115, width: 800, height: 455, title: 'Casa lui Miganul', theme: 'tavern' };
   if (scene.farm) return { x: 80, y: 105, width: 800, height: 465, title: 'Han · Misiuni', theme: 'tavern' };
   if (scene.bossRoomActive) return { ...scene.bossRoomBounds, title: 'Camera lui Tete', theme: 'boss' };
   return { x: 0, y: 0, width: 1600, height: 1200, title: scene.currentLevel === 2 ? 'Austria · Misiuni' : 'Sat · Misiuni', theme: scene.currentLevel === 2 ? 'alpine' : 'village' };
@@ -8,6 +9,11 @@ export function questMapTargets(scene) {
   const targets = [];
   const push = (id, name, x, y, status) => targets.push({ id, name, x, y, status });
   const farm = scene.farm || scene, tavern = farm.tavernQuest?.status || 'inactive';
+  if (scene.sys?.settings?.key === 'MiganHouseScene') {
+    push('migan', 'Miganul', 200, 274, farm.winterQuest?.status === 'ointment-found' ? 'ready' : 'available');
+    if (farm.winterQuest?.status === 'searching') scene.chests?.filter(({ index }) => !farm.winterQuest.opened.includes(index)).forEach((chest) => push(`chest-${chest.index}`, 'Cufăr · Caută alifia', chest.x, chest.y, 'objective'));
+    return targets;
+  }
   if (scene.farm) {
     const visitor = (name, status) => {
       const npc = scene.tavernVisitors?.[name]?.group;
@@ -21,11 +27,13 @@ export function questMapTargets(scene) {
   }
   if (scene.currentLevel === 2) {
     const npc = scene.emperorLuis;
+    if (scene.winterQuest?.status === 'blocked' && npc) push('luis-winter', 'Luis · Întreabă despre portal', npc.x, npc.y, 'ready');
+    if (scene.winterQuest && !['blocked', 'ready', 'coat-owned'].includes(scene.winterQuest.status)) push('migan-house', 'Miganul · Scurta de Iarnă', 420, 1035, scene.winterQuest.status === 'ointment-found' ? 'ready' : 'objective');
     if (npc?.visible && scene.luisQuest?.status !== 'completed') {
       const count = scene.luisQuest?.count || 0;
       push('luis', `Luis · ${scene.luisQuest ? `${count}/3 medalioane` : 'Întreabă de Bobiță'}`, npc.x, npc.y, !scene.luisQuest ? 'available' : count >= 3 ? 'ready' : 'waiting');
     }
-    if (scene.mountainPortal) push('mountain-portal', 'Portal spre munți · În curând', scene.mountainPortal.x, scene.mountainPortal.y, 'objective');
+    if (scene.mountainPortal && (!scene.winterQuest || ['coat-owned', 'ready'].includes(scene.winterQuest.status))) push('mountain-portal', 'Portal spre munți', scene.mountainPortal.x, scene.mountainPortal.y, 'objective');
     return targets;
   }
   if (scene.bossRoomActive) {

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BASE_STATS, initializeStats, derivedStats, physicalDamage, spellDamage, grantStatPoints, spendStatPoint, syncCharacterStats } from '../src/character-stats.js';
+import { BASE_STATS, initializeStats, derivedStats, physicalDamage, spellDamage, grantStatPoints, spendStatPoint, syncCharacterStats, grantTeteVictoryPoints } from '../src/character-stats.js';
 import { swordAuraBonus } from '../src/skills.js';
 
 test('baseline preserves current combat and movement values', () => {
@@ -8,6 +8,12 @@ test('baseline preserves current combat and movement values', () => {
   assert.deepEqual(s.characterStats, BASE_STATS); assert.equal(s.statPoints, 0);
   assert.equal(stats.walkSpeed, 180); assert.equal(stats.attackMs, 160); assert.equal(stats.maxHealth, 30);
   assert.equal(physicalDamage(s, 1), 1); assert.equal(spellDamage(s, 2), 2); assert.equal(stats.rushBonus, 0.6);
+});
+test('Tete victory grants three spendable points exactly once, including after allocation', () => {
+  const s = {};
+  assert.equal(grantTeteVictoryPoints(s), true); assert.equal(s.statPoints, 3);
+  spendStatPoint(s, 'strength'); assert.equal(s.statPoints, 2);
+  assert.equal(grantTeteVictoryPoints(s), false); assert.equal(s.statPoints, 2);
 });
 test('each allocated attribute changes its intended effect and spends only available points', () => {
   const s = { playerHealth: 30 }; assert.equal(spendStatPoint(s, 'speed'), false);
