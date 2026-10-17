@@ -1,6 +1,8 @@
 import { setAudioVolume, unlockAudio } from './audio.js';
 import { shiftVillageTimers } from './tavern-access.js';
 import { installSaveControls } from './save-system.js';
+import { closeBook } from './completion.js';
+import { dismissDialogue } from './escape-ui.js';
 
 export function shiftMenuTimers(scene, elapsed) {
   const shift = (object, keys) => keys.forEach((key) => { if (object && typeof object[key] === 'number' && object[key] > 0) object[key] += elapsed; });
@@ -32,6 +34,7 @@ export function buildControlsHelp(farm) {
     ${farm.equippedBoots || farm.inventory?.some(({ type }) => type === 'wind-boots') ? '<dt>Papuci de Vânt</dt><dd>+25% viteză cât sunt echipați. Click în inventar pentru echipare sau pe slotul de cizme pentru dezechipare.</dd>' : ''}
     <dt>1 – 5</dt><dd>Selectează un obiect din hotbar. Primele 5 sloturi ale inventarului apar în hotbar în aceeași ordine; trage obiectele între sloturi pentru a le organiza.</dd>
     <dt>E</dt><dd>Interacționează cu NPC-uri și obiecte apropiate. Deschide cartea selectată. Dacă nu există o interacțiune, deschide inventarul; dacă inventarul este deschis, îl închide.</dd>
+    <dt>J</dt><dd>Deschide jurnalul de misiuni: obiective, progres și recompense. J sau Esc îl închide.</dd>
     <dt>I</dt><dd>Deschide sau închide inventarul.</dd>
     <dt>Statusuri</dt><dd>Butonul din stânga cufărului arată atributele lui Gdolf și efectele lor. Punctele disponibile pot fi distribuite cu +.</dd>
     <dt>Esc</dt><dd>Închide statusurile, cartea sau inventarul dacă sunt deschise. Altfel, deschide/închide meniul.</dd>
@@ -45,6 +48,7 @@ export function buildControlsHelp(farm) {
   </dl>
   <h3>Lucruri utile</h3>
   <ul>
+    ${farm.bobitaUnlocked ? '<li>Bobiță: click pe caseta sa din party pentru La somn / Summon. Are 25 HP și vindecă membrii activi din apropiere cu 2 HP la fiecare 5 secunde. Un medalion de aur îi reface 3 HP sau îl reînvie; apoi folosește Summon. Cartea lui se deschide cu E când este selectată, sau click în inventar. Colierul oferă +4 Strength și +6 Vitality doar echipat.</li>' : ''}
     <li>Sabia se ridică automat când te apropii de ea.</li>
     <li>Cupon Keeper cere 100 de bănuți. Sătenii sunt imuni până cumperi cuponul; prima lovitură îi înfurie pe toți.</li>
     <li>Dialogurile se continuă cu butonul „Continuă”. Jocul stă pe loc cât citești.</li>
@@ -77,7 +81,7 @@ export function installPauseMenu(farm) {
   };
   const open = () => {
     if (overlay) return;
-    pausedScene = farm.scene.isActive('MiganHouseScene') ? farm.scene.get('MiganHouseScene') : farm.scene.isActive('TavernScene') ? farm.scene.get('TavernScene') : farm;
+    pausedScene = farm.scene.isActive('MateiHouseScene') ? farm.scene.get('MateiHouseScene') : farm.scene.isActive('MountainScene') ? farm.scene.get('MountainScene') : farm.scene.isActive('MiganHouseScene') ? farm.scene.get('MiganHouseScene') : farm.scene.isActive('TavernScene') ? farm.scene.get('TavernScene') : farm;
     oldFocus = document.activeElement;
     startedAt = farm.game.loop.now;
     farm.menuOpen = true;
@@ -132,13 +136,31 @@ export function installPauseMenu(farm) {
   };
   const keydown = (event) => {
     if (event.key === 'Escape') {
-      if (!overlay && farm.bookOpen) return;
       event.preventDefault(); event.stopImmediatePropagation();
       if (event.repeat) return;
+      if (!overlay && farm.bookOpen) { closeBook(farm); return; }
+      if (!overlay && farm.journalOpen) { farm.closeJournal(); return; }
       if (!overlay && farm.statsOpen) { farm.closeStats(); return; }
       if (!overlay && farm.inventoryUi && !farm.inventoryUi.classList.contains('hidden')) {
         farm.toggleInventory(false);
         return;
+      }
+      if (!overlay) {
+        const active = farm.scene.isActive('MateiHouseScene') ? farm.scene.get('MateiHouseScene') : farm.scene.isActive('MountainScene') ? farm.scene.get('MountainScene') : farm.scene.isActive('MiganHouseScene') ? farm.scene.get('MiganHouseScene') : farm.scene.isActive('TavernScene') ? farm.scene.get('TavernScene') : farm;
+        if (dismissDialogue(active)) return;
+        if (farm.chapterDialogueOpen) {
+          document.querySelector('.chapter-dialogue button')?.click();
+          return;
+        }
+        const partyButton = farm.partyHud?.querySelector('.party-sleep');
+        const bobitaButton = farm.bobitaPartyHud?.querySelector('.party-sleep');
+        if (bobitaButton && !bobitaButton.hidden) { bobitaButton.hidden = true; farm.bobitaPartyHud.querySelector('.party-portrait').setAttribute('aria-expanded', 'false'); return; }
+        if (partyButton && !partyButton.hidden) {
+          partyButton.hidden = true;
+          farm.partyHud.querySelector('.party-portrait')?.setAttribute('aria-expanded', 'false');
+          return;
+        }
+        if (farm.introOverlay && !farm.introOverlay.classList.contains('hidden')) return;
       }
       if (overlay && infoOpen) overlay.showInfo(false);
       else if (overlay) close();

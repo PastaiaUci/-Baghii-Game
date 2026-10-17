@@ -27,9 +27,9 @@ export function buyGear(scene, type) {
   return `Ai cumpărat ${gear.name}. Îl poți echipa din inventar.`;
 }
 export function toggleGear(scene, item) {
-  const gear = EXTRA_GEAR[item?.type] || (item?.type === 'winter-coat' ? { slot: 'armor' } : null);
+  const gear = EXTRA_GEAR[item?.type] || (item?.type === 'winter-coat' ? { slot: 'armor' } : item?.type === 'gold-necklace' ? { slot: 'necklace' } : null);
   if (!gear) return false;
-  const property = gear.slot === 'boots' ? 'equippedBoots' : gear.slot === 'armor' ? 'equippedArmor' : 'equippedShield';
+  const property = gear.slot === 'boots' ? 'equippedBoots' : gear.slot === 'armor' ? 'equippedArmor' : gear.slot === 'necklace' ? 'equippedNecklace' : 'equippedShield';
   if (scene[property] === item) {
     const slot = scene.inventory.findIndex(({ type }) => type === 'empty');
     if (slot < 0) {
@@ -77,6 +77,10 @@ export function drawExtraGear(ctx, scene, x, y, scale = 1, pose = {}) {
     ctx.fillStyle = '#dab96e'; ctx.fillRect(16, 23, 1, 7);
     ctx.restore();
   }
+  if (scene.equippedNecklace) {
+    ctx.strokeStyle = '#eac15e'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(11, 22 + bob); ctx.lineTo(16, 28 + bob); ctx.lineTo(22, 22 + bob); ctx.stroke();
+    ctx.fillStyle = '#9fe0b6'; ctx.fillRect(15, 27 + bob, 3, 3);
+  }
   if (scene.equippedBoots) {
     ctx.fillStyle = '#578e8e'; ctx.fillRect(8 + step, 34 - leftLift, 8, 5); ctx.fillRect(17 - step, 34 - rightLift, 8, 5);
     ctx.fillStyle = '#c5e8cf'; ctx.fillRect(9 + step, 34 - leftLift, 5, 1); ctx.fillRect(18 - step, 34 - rightLift, 5, 1);
@@ -100,7 +104,7 @@ export function createGearVisual(scene, owner = scene) {
     const player = scene.player;
     const visible = Boolean(player?.visible && !scene.tavernActive);
     const ctx = texture.getContext(); ctx.clearRect(0, 0, 32, 40); drawExtraGear(ctx, owner, 0, 0, 1, getGdolfPose(player)); texture.refresh();
-    visual.setVisible(visible && Boolean(owner.equippedBoots || owner.equippedShield || owner.equippedArmor));
+    visual.setVisible(visible && Boolean(owner.equippedBoots || owner.equippedShield || owner.equippedArmor || owner.equippedNecklace));
     if (!player) return;
     const blocking = isShieldBlocking(owner);
     visual.setPosition(player.x + (blocking ? 4 : 0), player.y).setDepth(player.depth + 0.06);

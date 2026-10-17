@@ -17,6 +17,18 @@ test('portal failure directs player back to Luis, who unlocks the house quest', 
   while (s.winterDialogue) advanceWinterDialogue(s);
   assert.equal(s.winterQuest.status, 'seek-migan'); assert.match(s.quest.text, /Miganul/);
 });
+
+test('test gear opens the mountain portal without repeating the coat quest', () => {
+  const s = scene(); let destination;
+  s.luisQuest = { status: 'completed', count: 3 };
+  s.equippedArmor = { type: 'winter-coat' };
+  s.scene = { launch(key) { destination = key; }, pause() {} };
+  assert.equal(attemptMountainPortal(s), true);
+  assert.equal(destination, 'MountainScene');
+  assert.equal(s.winterQuest.status, 'ready');
+  assert.equal(s.mountainRescue.status, 'searching');
+  assert.equal(s.npcDialogueOpen, undefined);
+});
 test('chest outcome stays fixed and opened traps cannot be farmed repeatedly', () => {
   const s = scene(); s.winterQuest = { status: 'searching', opened: [], correctChest: null };
   assert.equal(chooseHouseChest(s, 0, () => 0.5), 'trap'); assert.equal(s.winterQuest.correctChest, 3);

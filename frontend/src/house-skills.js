@@ -6,7 +6,7 @@ import { movementMultiplier } from './gear.js';
 
 export function createHouseSkills(scene) {
   const owner = scene.farm;
-  for (const key of ['characterStats', 'equippedHelmet', 'equippedBoots', 'equippedArmor', 'equippedShield', 'hasDeathBreath', 'introOverlay', 'menuOpen', 'statsOpen', 'bookOpen']) {
+  for (const key of ['characterStats', 'equippedHelmet', 'equippedBoots', 'equippedArmor', 'equippedShield', 'equippedNecklace', 'hasDeathBreath', 'introOverlay', 'menuOpen', 'statsOpen', 'bookOpen']) {
     Object.defineProperty(scene, key, { configurable: true, get: () => owner[key] });
   }
   Object.defineProperty(scene, 'gameOver', { configurable: true, get: () => scene.dead });

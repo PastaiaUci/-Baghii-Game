@@ -1,10 +1,12 @@
 import { createMetinTextures } from './metin-art.js';
 import { showNpcDialogue, hideNpcDialogue } from './dialogue.js';
+import { damageBobita } from './bobita-rewards.js';
 import { damagePartyTete, dropRevivalBeer } from './party-health.js';
 import { updatePlayerHealth } from './boss.js';
 import { collectLuisMedallion } from './luis-quest.js';
 import { awardEnemyXp } from './leveling.js';
 import { showDamage } from './combat-feedback.js';
+import { deathSummary } from './death-summary.js';
 
 export const METIN_LOCATIONS = [
   [260, 900, 1], [600, 1010, 1], [1320, 670, 2], [1040, 760, 2], [550, 740, 1],
@@ -189,7 +191,8 @@ export function updateMetinStones(scene) {
     const { sprite } = mob;
     const tete = scene.partyTete;
     const canHitTete = tete?.active && !scene.partyTeteSleeping && scene.partyTeteHealth > 0;
-    const target = canHitTete && Math.hypot(tete.x - sprite.x, tete.y - sprite.y) < Math.hypot(scene.player.x - sprite.x, scene.player.y - sprite.y) ? tete : scene.player;
+    const candidates = [scene.player, ...(canHitTete ? [tete] : []), ...(scene.partyBobita?.active && !scene.partyBobitaSleeping && scene.partyBobitaHealth > 0 ? [scene.partyBobita] : [])];
+    const target = candidates.sort((a, b) => Math.hypot(a.x - sprite.x, a.y - sprite.y) - Math.hypot(b.x - sprite.x, b.y - sprite.y))[0];
     const dx = target.x - sprite.x, dy = target.y - sprite.y, distance = Math.hypot(dx, dy);
     mob.cooldown -= dt; mob.warning.clear();
     const slowed = scene.time.now < sprite.slowUntil;
@@ -200,7 +203,9 @@ export function updateMetinStones(scene) {
       const victim = mob.windupTarget;
       if (mob.windup <= 0 && victim?.active && Math.hypot(victim.x - sprite.x, victim.y - sprite.y) < 48) {
         const damage = (mob.kind === 'yeti' ? 4 : 2) + mob.stone.level - 1;
-        if (victim === scene.partyTete) damagePartyTete(scene, damage); else scene.damagePlayer(damage);
+        if (victim === scene.partyTete) damagePartyTete(scene, damage);
+        else if (victim === scene.partyBobita) { showDamage(scene, victim, Math.min(damage, scene.partyBobitaHealth)); damageBobita(scene, damage); }
+        else scene.damagePlayer(damage, { enemy: mob.kind === 'yeti' ? 'Yeti' : mob.kind === 'plague' ? 'Om al ciumei' : 'Penis umblător', attack: `Lovitură corp la corp · ${mob.stone.name} · Dificultate ${mob.stone.level}` });
       }
     } else if (distance < 43 && mob.cooldown <= 0) { mob.windupTarget = target; mob.windup = mob.kind === 'yeti' ? 650 : 450; mob.cooldown = 1500; sprite.setVelocity(0, 0); }
     else if (distance > 32) {
@@ -221,7 +226,7 @@ export function updateMetinStones(scene) {
 export function showAlpineDeath(scene) {
   scene.gameOver = true;
   scene.metinMobs.filter((mob) => mob.alive).forEach(removeMob);
-  showNpcDialogue(scene, 'Gdolf · Ai fost învins', 'Mobii pietrelor m-au pus la pământ. Îmi trag sufletul și revin în sat.');
+  showNpcDialogue(scene, 'Gdolf · Ai fost învins', `Mobii pietrelor m-au pus la pământ. Îmi trag sufletul și revin în sat.\n\n${deathSummary(scene)}`);
   scene.dialogOkButton.textContent = 'Reînvie în sat';
   const revive = (event) => {
     event.stopImmediatePropagation(); scene.gameOver = false;

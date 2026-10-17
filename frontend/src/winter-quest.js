@@ -1,8 +1,10 @@
 import { grantXp } from './leveling.js';
 import { showNpcDialogue, hideNpcDialogue } from './dialogue.js';
+import { enterMountains, rescueHint } from './mountain-rescue.js';
 
 export const MIGAN_DOOR = { x: 420, y: 1035 };
 export function winterHint(scene) {
+  if (scene.mountainRescue) { rescueHint(scene); return; }
   const status = scene.winterQuest?.status;
   const hints = {
     blocked: ['Portalul refuză trecerea', 'Întoarce-te la Luis și întreabă de ce nu puteți intra.'],
@@ -10,7 +12,7 @@ export function winterHint(scene) {
     searching: ['Alifia lui Miganul', 'Caută alifia în cuferele casei și du-o lui Miganul.'],
     'ointment-found': ['Înapoi la Miganul', 'Du-i alifia pentru a primi Scurta de Iarnă.'],
     'coat-owned': ['Echipează Scurta de Iarnă', 'Click pe scurtă în inventar, apoi întoarce-te la portalul din nord.'],
-    ready: ['Pregătit pentru munți', 'Scurta de Iarnă te protejează. Destinația portalului va fi disponibilă în continuarea poveștii.'],
+    ready: ['Pregătit pentru munți', 'Scurta de Iarnă te protejează. Intră în portal și urcă pe urmele lui Bobiță.'],
   };
   if (hints[status]) scene.setQuest(...hints[status]);
 }
@@ -29,7 +31,7 @@ export function advanceWinterDialogue(scene) {
 export function attemptMountainPortal(scene) {
   if (scene.currentLevel !== 2 || !scene.mountainPortal || scene.npcDialogueOpen || scene.chapterDialogueOpen || scene.bookOpen || scene.gameOver || scene.tavernActive || !scene.inventoryUi.classList.contains('hidden')) return false;
   if (Math.hypot(scene.player.x - scene.mountainPortal.x, scene.player.y - scene.mountainPortal.y) > 75) return false;
-  if (!scene.winterQuest) {
+  if (!scene.winterQuest && scene.equippedArmor?.type !== 'winter-coat') {
     scene.winterQuest = { status: 'blocked', opened: [], correctChest: null };
     showWinterDialogue(scene, [
       ['Gdolf', 'Ce naiba? Încerc să intru și portalul mă împinge înapoi. Tete, tu poți trece?'],
@@ -37,14 +39,20 @@ export function attemptMountainPortal(scene) {
       ['Gdolf', 'Bine. Luis, sper că nu ne mai trimiți după alte medalioane!'],
     ], () => winterHint(scene));
   } else if (scene.equippedArmor?.type === 'winter-coat') {
+    scene.winterQuest ||= { status: 'ready', opened: [], correctChest: null };
     scene.winterQuest.status = 'ready'; winterHint(scene);
-    showNpcDialogue(scene, 'Gdolf', 'Acum am Scurta de Iarnă și sunt pregătit pentru frig. Portalul este pregătit; drumul prin munți urmează în continuarea poveștii.');
+    if (['rescued', 'transporting', 'delivered', 'thawed'].includes(scene.mountainRescue?.status)) { showNpcDialogue(scene, 'Gdolf', scene.mountainRescue.status === 'thawed' ? 'Bobiță este la căldură în casa lui F0ngel.' : 'L-am adus pe Bobiță în sat. Trebuie să ajungem cu el la casa lui F0ngel ca să-l dezghețăm.'); rescueHint(scene); }
+    else enterMountains(scene);
   } else {
     showNpcDialogue(scene, 'Gdolf', scene.winterQuest.status === 'coat-owned' ? 'Trebuie să-mi pun Scurta de Iarnă. O echipez din inventar.' : 'Tot nu putem trece. Mai întâi trebuie să rezolvăm cu echipamentul de iarnă.');
   }
   return true;
 }
 export function handleWinterLuis(scene) {
+  if (['rescued', 'transporting', 'delivered', 'thawed'].includes(scene.mountainRescue?.status)) {
+    showNpcDialogue(scene, 'Împăratul Luis al XIV-lea', scene.mountainRescue.status === 'thawed' ? 'Bine că l-ați dus la F0ngel! Acolo e în siguranță, la căldură.' : 'L-ați găsit! Duceți-l la F0ngel, în casa din nord-vestul satului. Are un șemineu bun, îl puteți dezgheța acolo.');
+    rescueHint(scene); return true;
+  }
   if (!scene.winterQuest) return false;
   if (scene.winterQuest.status === 'blocked') {
     showWinterDialogue(scene, [

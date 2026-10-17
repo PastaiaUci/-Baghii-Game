@@ -1,3 +1,4 @@
+import { createFirewoodWorld } from './firewood-quest.js';
 // Ambient residents stay separate from the combat villagers and quest counters.
 export const WINTER_RESIDENTS = [
   { name: 'Besleaga', x: 440, y: 660, range: 65, coat: 0x537d88, hat: 0xd6af68 },
@@ -30,7 +31,8 @@ export function createAlpineVillagers(scene) {
     label: scene.add.text(resident.x, resident.y - 60, resident.name, { fontFamily: 'Arial', fontSize: '9px', color: '#e9f1ed', stroke: '#344657', strokeThickness: 3 }).setOrigin(0.5).setDepth(30),
   }));
   scene.alpineResidents = residents;
-  const santa = scene.add.graphics().setPosition(435, 790).setDepth(17.9);
+  let santa = scene.add.graphics().setPosition(435, 790).setDepth(17.9);
+  scene.santaSleighArt = santa;
   // Snapped runners, scattered planks, a torn sack and the overturned sleigh.
   santa.fillStyle(0x52697c, 0.18).fillEllipse(0, 12, 145, 42);
   santa.lineStyle(4, 0xc4b08b).lineBetween(-62, 16, -12, 26).lineBetween(5, 29, 47, 19).lineBetween(47, 19, 56, 7);
@@ -42,6 +44,7 @@ export function createAlpineVillagers(scene) {
   santa.fillStyle(0xd9b46d).fillRect(48, -17, 4, 9);
   santa.fillStyle(0x4b6c45).fillRoundedRect(13, 35, 8, 16, 2).fillRect(15, 30, 4, 7);
   // Fully clothed Santa sprawled in the snow, with a red nose and white beard.
+  santa = scene.add.graphics().setPosition(435, 790).setDepth(17.9);
   santa.fillStyle(0x282d37).fillRoundedRect(-50, 47, 20, 10, 3).fillRoundedRect(-45, 62, 20, 10, 3);
   santa.fillStyle(0xb63f43).fillRoundedRect(-32, 43, 43, 28, 9).fillRoundedRect(-5, 65, 25, 8, 3);
   santa.fillStyle(0xf0eadb).fillRect(-29, 44, 6, 26).fillRect(-6, 44, 6, 25);
@@ -56,8 +59,10 @@ export function createAlpineVillagers(scene) {
   santa.fillStyle(0xf6edda).fillCircle(34, 29, 4);
   scene.add.text(435, 746, 'Moș Crăciun · mort de beat', { fontSize: '10px', color: '#ffe2b0', stroke: '#344657', strokeThickness: 3 }).setOrigin(0.5).setDepth(30);
   const snore = scene.add.text(477, 816, 'Zzz…', { fontSize: '11px', color: '#e8f3ff', stroke: '#344657', strokeThickness: 2 }).setDepth(30);
-  scene.level2Solids.add(scene.add.zone(430, 795, 108, 40));
+  scene.santaSleighCollider = scene.add.zone(430, 795, 108, 40);
+  scene.level2Solids.add(scene.santaSleighCollider);
   scene.level2Solids.add(scene.add.zone(425, 848, 74, 23));
+  createFirewoodWorld(scene);
   let elapsed = 0;
   const update = () => {
     if (scene.currentLevel !== 2 || scene.physics.world.isPaused || scene.npcDialogueOpen || scene.menuOpen || scene.statsOpen || scene.gameOver || scene.bookOpen || scene.chapterDialogueOpen || scene.levelTransitioning) return;

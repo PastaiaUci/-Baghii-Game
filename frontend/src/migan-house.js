@@ -1,3 +1,4 @@
+import { consumeBobitaMedallion } from './bobita-rewards.js';
 import Phaser from 'phaser';
 import { showNpcDialogue, hideNpcDialogue } from './dialogue.js';
 import { chooseHouseChest, giveWinterCoat, winterHint, showWinterDialogue, advanceWinterDialogue } from './winter-quest.js';
@@ -22,9 +23,11 @@ import { createHouseSkills, activateHouseSkill, updateHouseSkills } from './hous
 import { transferSkillState } from './skill-state.js';
 import { swordAuraBonus } from './skills.js';
 import { createPartyBeer, updatePartyBeer } from './party-beer.js';
+import { recordReceivedDamage, deathSummary } from './death-summary.js';
+import { damageBobita } from './bobita-rewards.js';
 
 export class MiganHouseScene extends Phaser.Scene {
-  constructor() { super('MiganHouseScene'); }
+  constructor(key = 'MiganHouseScene') { super(key); }
   init({ farm }) { this.farm = farm; this.npcDialogueOpen = false; this.leaving = false; this.dead = false; }
   create() {
     const farm = this.farm; farm.activeHouse = this;
@@ -55,6 +58,7 @@ export class MiganHouseScene extends Phaser.Scene {
     this.input.on('pointerdown', (pointer) => {
       if (pointer.rightButtonDown() || this.blocked()) return;
       const point = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+      if (getSelectedItem(this.farm)?.type === 'gold-medallion' && consumeBobitaMedallion(this.farm, getSelectedItem(this.farm))) return;
       if (getSelectedItem(farm)?.type === 'sword' && this.mobs.some((mob) => mob.alive && Math.hypot(point.x - mob.sprite.x, point.y - mob.sprite.y) < 28)) { this.attack(point); return; }
       if (Math.abs(point.x - 200) < 30 && Math.abs(point.y - 270) < 45) { if (Math.hypot(this.player.x - 200, this.player.y - 280) < 100) this.talk(); return; }
       const chest = this.chests.find((chest) => Math.hypot(point.x - chest.x, point.y - chest.y) < 30);
@@ -157,7 +161,7 @@ export class MiganHouseScene extends Phaser.Scene {
     this.drawChest(chest);
     if (result === 'ointment') showNpcDialogue(this, 'Gdolf', 'Am găsit alifia! Înapoi la Miganul.');
     else {
-      const cloud = this.add.graphics().setDepth(2); this.gas.push({ x: chest.x, y: chest.y, remaining: 5500, art: cloud });
+      const cloud = this.add.graphics().setDepth(2); this.gas.push({ x: chest.x, y: chest.y, remaining: 5500, art: cloud, source: { enemy: `Cufărul ${chest.index + 1}`, attack: 'Gaz otrăvitor · Poison' } });
       for (let i = 0, count = 3 + Math.floor(Math.random() * 2); i < count; i += 1) this.spawnBandit(chest, i);
     }
   }
@@ -224,16 +228,17 @@ export class MiganHouseScene extends Phaser.Scene {
     showCombatText(this, this.player, `+${restored} HP`, '#bef2b0');
     this.farm.updateInventoryList(); this.farm.updateHotbarState(); updatePlayerHealth(this.farm); return true;
   }
-  damage(amount, poison = false) {
+  damage(amount, poison = false, source = { enemy: 'Bandit', attack: 'Lovitură corp la corp' }) {
     if (this.dead) return;
     const farm = this.farm;
     const remaining = poison ? amount : absorbArmorDamage(farm, absorbShieldDamage(farm, amount, this.input.activePointer.rightButtonDown()));
+    recordReceivedDamage(this, source, Math.min(remaining, farm.playerHealth));
     showDamage(this, this.player, Math.min(remaining, farm.playerHealth), poison ? '#c4df8a' : '#ffb0a0');
     farm.playerHealth = Math.max(0, farm.playerHealth - remaining); updatePlayerHealth(farm);
     if (!farm.playerHealth) {
       this.dead = true; this.mobs.filter(({ alive }) => alive).forEach((mob) => this.killMob(mob));
       this.gas.forEach(({ art }) => art.destroy()); this.gas = []; this.poison = 0;
-      showWinterDialogue(this, [['Gdolf', 'Capcanele m-au pus la pământ. Îmi trag sufletul și mai încerc o dată.']], () => { farm.playerHealth = farm.maxPlayerHealth; this.player.setPosition(480, 520).setVelocity(0, 0); this.dead = false; updatePlayerHealth(farm); });
+      showWinterDialogue(this, [['Gdolf', `M-au pus la pământ. Îmi trag sufletul și mai încerc o dată.\n\n${deathSummary(this)}`]], () => { farm.playerHealth = farm.maxPlayerHealth; this.player.setPosition(480, 520).setVelocity(0, 0); this.dead = false; updatePlayerHealth(farm); });
     }
   }
   leave() { if (this.npcDialogueOpen || this.dead || this.leaving) return; this.leaving = true; this.scene.stop(); this.scene.resume('FarmScene'); }
@@ -254,23 +259,24 @@ export class MiganHouseScene extends Phaser.Scene {
       cloud.remaining -= dt;
       if (cloud.remaining <= 0) { cloud.art.destroy(); return false; }
       cloud.art.clear().fillStyle(0x8bb955, 0.22).fillEllipse(cloud.x, cloud.y, 110, 75);
-      if (Math.hypot(this.player.x - cloud.x, this.player.y - cloud.y) < 56) this.poison = 4000;
+      if (Math.hypot(this.player.x - cloud.x, this.player.y - cloud.y) < 56) { this.poison = 4000; this.poisonSource = cloud.source; }
       return true;
     });
     if (this.poison > 0) {
       this.poison -= dt; this.poisonTick -= dt;
-      if (this.poisonTick <= 0) { this.poisonTick = 1000; this.damage(1, true); }
+      if (this.poisonTick <= 0) { this.poisonTick = 1000; this.damage(1, true, this.poisonSource); }
     } else this.poisonTick = 1000;
     this.notice.querySelector('.house-poison').textContent = this.poison > 0 ? `Poison · ${Math.ceil(this.poison / 1000)}s` : '';
     this.mobs.filter(({ alive }) => alive).forEach((mob) => {
       if (!mob.alive || this.dead) return;
-      const target = this.partyTete?.active && Math.hypot(this.partyTete.x - mob.sprite.x, this.partyTete.y - mob.sprite.y) < Math.hypot(this.player.x - mob.sprite.x, this.player.y - mob.sprite.y) ? this.partyTete : this.player;
+      const targets = [this.player, ...(this.partyTete?.active ? [this.partyTete] : []), ...(this.partyBobita?.active ? [this.partyBobita] : [])];
+      const target = targets.sort((a, b) => Math.hypot(a.x - mob.sprite.x, a.y - mob.sprite.y) - Math.hypot(b.x - mob.sprite.x, b.y - mob.sprite.y))[0];
       const { sprite } = mob, x = target.x - sprite.x, y = target.y - sprite.y, distance = Math.hypot(x, y);
       mob.cooldown -= dt; mob.warning.clear();
       if (mob.windup > 0) {
         mob.windup -= dt; sprite.setVelocity(0, 0);
         mob.warning.lineStyle(2, 0xe2a36c, 0.7).strokeEllipse(sprite.x, sprite.y + 12, 50, 25);
-        if (mob.windup <= 0 && distance < 45) { if (target === this.player) this.damage(2); else damagePartyTete(this.farm, 2); }
+        if (mob.windup <= 0 && distance < 45) { if (target === this.player) this.damage(2); else if (target === this.partyBobita) { showDamage(this, target, 2); damageBobita(this.farm, 2); } else damagePartyTete(this.farm, 2); }
       } else if (distance < 40 && mob.cooldown <= 0) { mob.windup = 500; mob.cooldown = 1700; }
       else if (distance > 30) {
         const speed = 105 * (this.time.now < (sprite.slowUntil || 0) ? (sprite.slowFactor || 0.5) : 1);

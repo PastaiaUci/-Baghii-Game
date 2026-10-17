@@ -19,10 +19,11 @@ export function updateEquipmentPanel(scene) {
     ['boots', scene.equippedBoots, 'boots-icon', '+25% viteză'],
     ['shield', scene.equippedShield, 'shield-icon', `${scene.equippedShield?.durability || 0}/50`],
     ['armor', scene.equippedArmor, 'winter-coat-icon', 'Protecție frig'],
+    ['necklace', scene.equippedNecklace, 'gold-necklace-icon', '+4 STR · +6 VIT'],
   ]) {
     const slot = panel.querySelector(`[data-equipment="${id}"]`);
     slot.classList.toggle('equipped', Boolean(item));
-    slot.title = item ? `${item.label} · Click pentru dezechipare` : `${id === 'boots' ? 'Cizme' : id === 'armor' ? 'Armură' : 'Scut'}: gol`;
+    slot.title = item ? `${item.label} · Click pentru dezechipare` : `${id === 'boots' ? 'Cizme' : id === 'armor' ? 'Armură' : id === 'necklace' ? 'Colier' : 'Scut'}: gol`;
     slot.querySelector('small').textContent = item ? detail : 'Gol';
     slot.querySelector('.equipment-symbol').innerHTML = item ? `<span class="${icon}"></span>` : id === 'boots' ? '♟' : '⬡';
   }

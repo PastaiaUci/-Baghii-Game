@@ -210,7 +210,7 @@ export function createBoss(scene) {
     scene.physics.add.overlap(scene.player, scene.bossProjectiles, (_player, beer) => {
       if (!scene.bossFightActive || !beer.active) return;
       beer.destroy();
-      scene.damagePlayer(4);
+      scene.damagePlayer(4, { enemy: 'Tete', attack: 'Bere aruncată' });
     }),
   ];
 }
@@ -286,7 +286,7 @@ export function updateBoss(scene) {
   // Overlapping puddles share one damage tick, independent of frame rate.
   if (touching && now >= scene.nextPuddleDamageAt) {
     scene.nextPuddleDamageAt = now + 750;
-    scene.damagePlayer(2);
+    scene.damagePlayer(2, { enemy: 'Tete', attack: 'Baltă albă' });
   }
 }
 

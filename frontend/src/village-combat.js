@@ -1,5 +1,6 @@
 import { findPartyPath } from './completion.js';
 import { playSound } from './audio.js';
+import { appendDeathSummary } from './death-summary.js';
 
 export const VILLAGER_ROLES = [
   { name: 'Pumni', range: 43, damage: 2, cooldown: 1400, windup: 430 },
@@ -53,8 +54,9 @@ export function createVillageCombat(scene) {
   scene.physics.add.collider(scene.villagerArrows, scene.obstacles, (arrow) => arrow.destroy());
   scene.physics.add.overlap(scene.player, scene.villagerArrows, (_player, arrow) => {
     if (!scene.villageEnraged || scene.gameOver || !arrow.active) return;
+    const source = arrow.damageSource || { enemy: 'Sătean cu arc', attack: 'Săgeată' };
     arrow.destroy();
-    scene.damagePlayer(2);
+    scene.damagePlayer(2, source);
   });
 }
 
@@ -113,8 +115,9 @@ export function updateEnragedVillager(scene, v) {
       scene.villagerArrows.add(arrow);
       arrow.setDepth(26).setRotation(angle).setCircle(3, 11, 1).setVelocity(Math.cos(angle) * 200, Math.sin(angle) * 200);
       arrow.expiresAt = now + 2400;
+      arrow.damageSource = { enemy: v.name, attack: 'Săgeată' };
       playSound(scene, 'arrow');
-    } else if (canVillagerHit(v, now, distance)) scene.damagePlayer(v.role.damage);
+    } else if (canVillagerHit(v, now, distance)) scene.damagePlayer(v.role.damage, { enemy: v.name, attack: `Lovitură · ${v.role.name}` });
     return;
   }
   if (distance > (archer ? 210 : v.role.range - 5)) chase(scene, v, dx, dy, distance);
@@ -143,6 +146,7 @@ export function showVillageDeath(scene) {
   const overlay = document.createElement('div');
   overlay.className = 'chapter-dialogue';
   overlay.innerHTML = '<section role="dialog" aria-modal="true" aria-label="Ai fost învins"><img src="/assets/Gdolf.png" alt="Gdolf"><div><small>GDOLF · AI MURIT</small><h2>Satul s-a răsculat</h2><p>Sătenii m-au pus la pământ. Mă întorc și mai încerc o dată!</p><button type="button">Înapoi în sat →</button></div></section>';
+  appendDeathSummary(overlay, scene);
   document.body.appendChild(overlay);
   const button = overlay.querySelector('button'); button.focus();
   button.addEventListener('click', () => {

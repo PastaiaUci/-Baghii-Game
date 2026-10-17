@@ -1,4 +1,6 @@
 export function questMapInfo(scene) {
+  if (scene.sys?.settings?.key === 'MateiHouseScene') return { x: 90, y: 150, width: 780, height: 420, title: 'Casa lui F0ngel', theme: 'tavern' };
+  if (scene.sys?.settings?.key === 'MountainScene') return { x: 0, y: 0, width: 1200, height: 4200, title: 'Munți · Bobiță', theme: 'alpine' };
   if (scene.sys?.settings?.key === 'MiganHouseScene') return { x: 80, y: 115, width: 800, height: 455, title: 'Casa lui Miganul', theme: 'tavern' };
   if (scene.farm) return { x: 80, y: 105, width: 800, height: 465, title: 'Han · Misiuni', theme: 'tavern' };
   if (scene.bossRoomActive) return { ...scene.bossRoomBounds, title: 'Camera lui Tete', theme: 'boss' };
@@ -9,6 +11,16 @@ export function questMapTargets(scene) {
   const targets = [];
   const push = (id, name, x, y, status) => targets.push({ id, name, x, y, status });
   const farm = scene.farm || scene, tavern = farm.tavernQuest?.status || 'inactive';
+  if (scene.sys?.settings?.key === 'MateiHouseScene') {
+    push('matei', 'F0ngel · Dezgheață-l pe Bobiță', 360, 290, farm.mountainRescue?.status === 'thawed' ? 'available' : 'ready');
+    return targets;
+  }
+  if (scene.sys?.settings?.key === 'MountainScene') {
+    if (farm.mountainRescue?.status === 'searching') push('summit', 'Platoul · Caută-l pe Bobiță', 600, 500, 'objective');
+    if (farm.mountainRescue?.status === 'found' && scene.ice) push('bobita', 'Bobiță · Ridică-l', scene.ice.x, scene.ice.y, 'ready');
+    push('return', 'Portal · Înapoi în sat', 600 + Math.sin((3990 - 850) / 420) * 190, 4005, 'objective');
+    return targets;
+  }
   if (scene.sys?.settings?.key === 'MiganHouseScene') {
     push('migan', 'Miganul', 200, 274, farm.winterQuest?.status === 'ointment-found' ? 'ready' : 'available');
     if (farm.winterQuest?.status === 'searching') scene.chests?.filter(({ index }) => !farm.winterQuest.opened.includes(index)).forEach((chest) => push(`chest-${chest.index}`, 'Cufăr · Caută alifia', chest.x, chest.y, 'objective'));
@@ -26,6 +38,20 @@ export function questMapTargets(scene) {
     return targets;
   }
   if (scene.currentLevel === 2) {
+    const wood = scene.mountainRescue?.firewood;
+    if (scene.mountainRescue?.status === 'delivered' && ['needed', 'chopped'].includes(wood?.stage)) {
+      push('santa-wood', wood.stage === 'needed' ? 'Sania Moșului · Sparge-o cu sabia' : 'Lemne · Ridică-le', 435, 790, 'ready');
+      return targets;
+    }
+    if (scene.mountainRescue?.status === 'rescued') {
+      push('bobita-rescued', 'Bobiță · Înghețat lângă Luis', 960, 600, 'ready');
+      push('matei-house', 'Casa lui F0ngel · La căldură', 370, 478, 'objective');
+      return targets;
+    }
+    if (['transporting', 'delivered', 'thawed'].includes(scene.mountainRescue?.status)) {
+      push('matei-house', 'Casa lui F0ngel · Bobiță', 370, 478, scene.mountainRescue.status === 'thawed' ? 'available' : 'ready');
+      return targets;
+    }
     const npc = scene.emperorLuis;
     if (scene.winterQuest?.status === 'blocked' && npc) push('luis-winter', 'Luis · Întreabă despre portal', npc.x, npc.y, 'ready');
     if (scene.winterQuest && !['blocked', 'ready', 'coat-owned'].includes(scene.winterQuest.status)) push('migan-house', 'Miganul · Scurta de Iarnă', 420, 1035, scene.winterQuest.status === 'ointment-found' ? 'ready' : 'objective');

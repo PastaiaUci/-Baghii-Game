@@ -119,7 +119,7 @@ export function closeBook(scene) {
   scene.bookOpen = false;
 }
 
-export async function openBook(scene) {
+export async function openBook(scene, type = 'book') {
   if (scene.bookOpen) return;
   scene.bookOpen = true;
   scene.player.setVelocity(0, 0);
@@ -127,6 +127,11 @@ export async function openBook(scene) {
   scene.bookOverlay = overlay;
   overlay.className = 'book-overlay';
   overlay.innerHTML = '<section class="book-panel" role="dialog" aria-modal="true" aria-label="Cartea lui Tete"><header><div><small>RECOMPENSĂ · LEVEL 1</small><h2>Cartea lui Tete</h2></div><button class="book-close" aria-label="Închide cartea">×</button></header><div class="book-page"><p>Se deschide cartea…</p></div><footer><button class="book-prev">← Înapoi</button><span class="book-count"></span><button class="book-next">Înainte →</button></footer></section>';
+  if (type === 'bobita-book') {
+    overlay.querySelector('.book-panel').setAttribute('aria-label', 'Cartea lui Bobiță');
+    overlay.querySelector('h2').textContent = 'Cartea lui Bobiță';
+    overlay.querySelector('small').textContent = 'BOBIȚĂ · ÎNAPOI LA CĂLDURĂ';
+  }
   document.body.appendChild(overlay);
   overlay.querySelector('.book-close').addEventListener('click', () => closeBook(scene));
   overlay.addEventListener('click', (event) => { if (event.target === overlay) closeBook(scene); });
@@ -138,7 +143,7 @@ export async function openBook(scene) {
   scene.events.once('shutdown', () => closeBook(scene));
   let pages = [];
   try {
-    const response = await fetch('/assets/book/pages.json');
+    const response = await fetch(type === 'bobita-book' ? '/assets/Bobita/pages.json' : '/assets/book/pages.json');
     if (!response.ok) throw new Error('No pages');
     const data = await response.json();
     pages = data.pages.filter((src) => typeof src === 'string' && src.startsWith('/assets/') && !src.includes('..'));

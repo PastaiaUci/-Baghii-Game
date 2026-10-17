@@ -12,6 +12,31 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.journal-toggle { position: fixed; right: 16px; bottom: 145px; z-index: 160; padding: 10px 13px; border: 1px solid #b69a60; border-radius: 8px; background: linear-gradient(#4d3e2c, #29251e); color: #f4dfad; font: bold 11px Arial, sans-serif; cursor: var(--cursor-interact); }
+.journal-overlay { position: fixed; inset: 0; z-index: 600; display: grid; place-items: center; padding: 18px; background: #101719bd; backdrop-filter: blur(4px); }
+.journal-panel { display: flex; flex-direction: column; width: min(660px, 100%); max-height: calc(100dvh - 60px); padding: 24px; box-sizing: border-box; border: 1px solid #b79962; border-radius: 14px; background: linear-gradient(145deg, #302b23, #192523); color: #eadcbb; box-shadow: 0 20px 70px #0009; font-family: Arial, sans-serif; }
+.journal-heading, .journal-card header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.journal-heading small { font-size: 9px; letter-spacing: 0.2em; color: #b8a277; }
+.journal-heading h2 { margin: 7px 0; font: 25px Georgia, serif; color: #ffe4a9; }
+.journal-progress, .journal-hint { color: #b9c4ac; font-size: 11px; }
+.journal-panel button { border: 1px solid #8d805d; border-radius: 6px; background: #263832; color: #e9ddb8; padding: 8px 12px; cursor: var(--cursor-interact); }
+.journal-heading .journal-close { font-size: 24px; padding: 3px 11px; }
+.journal-panel nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 16px; }
+.journal-panel button[aria-pressed="true"] { background: #665735; border-color: #e1c18a; color: #fff1cf; }
+.journal-list { overflow-y: auto; min-height: 70px; padding-right: 5px; }
+.journal-card { margin-bottom: 10px; padding: 15px; border: 1px solid #69775e88; border-left: 3px solid #cfb56c; border-radius: 8px; background: #111c1b80; }
+.journal-card-completed { border-left-color: #86b586; }
+.journal-card small { color: #a5b9a1; font-size: 10px; }
+.journal-card h3 { margin: 7px 0; font-size: 15px; color: #f1dfb3; }
+.journal-card header span { flex-shrink: 0; color: #d9c481; font-size: 10px; }
+.journal-card-completed header span { color: #a3d0a3; }
+.journal-card p { margin: 7px 0; font-size: 12px; line-height: 1.6; color: #d2d7c6; }
+.journal-card footer { font-size: 10px; color: #c9b082; margin-top: 9px; }
+.journal-card footer:empty { display: none; }
+.journal-hint { margin-bottom: 0; }
+.journal-toggle:focus-visible, .journal-panel button:focus-visible { outline: 2px solid #ffe0a0; outline-offset: 3px; }
+@media (max-width: 600px) { .journal-panel { padding: 16px; } .journal-heading h2 { font-size: 21px; } .journal-card { padding: 11px; } .journal-toggle { bottom: 112px; } }
+
 .save-controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 14px; }
 .save-controls button, .save-continue { padding: 10px 15px; color: #f7e8c6; background: #354538; border: 1px solid #a18a5d; border-radius: 7px; font: bold 12px Arial, sans-serif; cursor: var(--cursor-interact); }
 .save-controls button:hover, .save-continue:hover { background: #4b614b; }
@@ -185,6 +210,7 @@ canvas {
 }
 
 .npc-dialog-text {
+  white-space: pre-line;
   font-family: Arial, sans-serif;
   font-size: 15px;
   line-height: 1.45;
@@ -1092,3 +1118,8 @@ canvas {
 
 /* Phaser sets its interactive cursor directly on the canvas. */
 canvas[style*='cursor: pointer'] { cursor: var(--cursor-interact) !important; }
+
+.firewood-icon { display: block; width: 42px; height: 42px; max-width: 85%; max-height: 85%; object-fit: contain; filter: drop-shadow(0 2px 2px #1d151980); }
+.gold-necklace-icon { display: inline-block; width: 38px; height: 38px; background: url('/assets/icons/gold-necklace.svg') center / contain no-repeat; }
+.medallion-shop-icon { display: inline-block; width: 42px; height: 42px; background: url('/assets/Bobita/medalion.png') center / contain no-repeat; }
+.bobita-party-hud { top: 310px; border-color: #7cbca9; }

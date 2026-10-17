@@ -18,6 +18,8 @@ export function prepareLevelTwoTestState(scene, reward) {
   scene.inventory[0] = { type: 'sword', label: 'Sword', key: '1' };
   scene.inventory[1] = { type: 'coupon', label: 'Cupon', key: '2' };
   scene.inventory[2] = { type: 'health-potion', label: 'Poțiune de viață · +10 HP', key: '3' };
+  scene.inventory[3] = { type: 'gold-medallion', label: 'Medalioane de aur ×3 · Pentru Luis', quantity: 3, key: '4' };
+  scene.equippedArmor = { type: 'winter-coat', label: 'Scurta de Iarnă · Protecție pentru munți' };
   scene.equippedHelmet = { type: 'helmet', label: 'Cască de fier · 5 armură', armorRemaining: 5 };
   scene.shopHelmetSold = true;
   scene.bossLootState = { consumed: reward };
@@ -62,7 +64,7 @@ export function clickTestCheckpoint(scene, point) {
   const npc = scene.testCheckpointNpc;
   if (!npc?.visible || scene.testCheckpointUsed || scene.currentLevel === 2 || Math.abs(point.x - npc.x) > 23 || point.y < npc.y - 45 || point.y > npc.y + 22) return false;
   if (!canInteract(scene, npc)) return true;
-  showNpcDialogue(scene, 'Tester · Checkpoint Nivelul 2', 'Doar pentru testare: sari direct în Austria cu Tete învins și în party (25 HP), sabie, cupon, carte, poțiune, cască echipată și 1000 gold pentru testarea magazinului. Progresul curent este înlocuit. Alege recompensa lui Tete sau apasă Continuă ca să joci normal.');
+  showNpcDialogue(scene, 'Tester · Checkpoint Nivelul 2', 'Doar pentru testare: sari direct în Austria cu Tete învins și în party (25 HP), sabie, cupon, carte, poțiune, cască și Scurta de Iarnă echipate, 3 medalioane pentru Luis și 1000 gold. Progresul curent este înlocuit. Alege recompensa lui Tete sau apasă Continuă ca să joci normal.');
   const actions = document.createElement('div'); actions.className = 'test-checkpoint-actions';
   for (const [reward, text] of [['beer', 'Testează cu Bere · Death Breath'], ['sperma', 'Testează cu Sperma · Flashlight']]) {
     const button = document.createElement('button'); button.type = 'button'; button.textContent = text;

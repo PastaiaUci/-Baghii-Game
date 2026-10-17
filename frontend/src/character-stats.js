@@ -13,7 +13,7 @@ export function initializeStats(scene) {
 }
 export function effectiveStats(scene) {
   const values = { ...BASE_STATS, ...scene.characterStats };
-  const items = new Set([scene.equippedHelmet, scene.equippedBoots, scene.equippedShield, scene.equippedArmor, ...Object.values(scene.equipment || {})]);
+  const items = new Set([scene.equippedHelmet, scene.equippedBoots, scene.equippedShield, scene.equippedArmor, scene.equippedNecklace, ...Object.values(scene.equipment || {})]);
   for (const item of items) {
     for (const [key, amount] of Object.entries(item?.statBonuses || {})) {
       if (key in values && Number.isFinite(amount)) values[key] += amount;

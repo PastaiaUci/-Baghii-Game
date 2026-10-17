@@ -66,6 +66,7 @@ test('archer fires an aimed arrow after warning; melee deals its configured dama
   updateEnragedVillager(s, archer);
   assert.equal(arrows.length, 1);
   assert.equal(arrows[0].expiresAt, 4200);
+  assert.deepEqual(arrows[0].damageSource, { enemy: archer.name, attack: 'Săgeată' });
   const melee = s.npcs[2];
   let damage = 0;
   s.damagePlayer = (amount) => { damage += amount; };

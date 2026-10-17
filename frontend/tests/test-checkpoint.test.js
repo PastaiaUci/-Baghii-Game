@@ -10,6 +10,9 @@ test('test checkpoint grants required progression and preserves exclusive reward
     assert.equal(s.gold, 1000); assert.equal(s.playerHealth, 30);
     assert.deepEqual(s.inventory.slice(0, 3).map(({ type }) => type), ['sword', 'coupon', 'health-potion']);
     assert.equal(s.equippedHelmet.armorRemaining, 5);
+    assert.equal(s.equippedArmor.type, 'winter-coat');
+    assert.equal(s.inventory[3].type, 'gold-medallion');
+    assert.equal(s.inventory[3].quantity, 3);
     assert.equal(s.bossLootState.consumed, reward);
     assert.equal(s.shopHelmetSold, true);
   }

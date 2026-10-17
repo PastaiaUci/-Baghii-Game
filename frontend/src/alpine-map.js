@@ -85,6 +85,13 @@ export function createAlpineMap(scene) {
     solid(x, base - 30, 136, 60);
   };
   chalet(370, 460); chalet(1130, 490, true); chalet(1100, 975); chalet(420, 1020, true);
+  const polishFlag = scene.add.graphics().setDepth(16);
+  polishFlag.lineStyle(3, 0x665a4e).lineBetween(442, 305, 442, 398);
+  polishFlag.fillStyle(0x624d3d).fillRect(441, 305, 53, 34);
+  polishFlag.fillStyle(0xffffff).fillRect(444, 307, 48, 15);
+  polishFlag.fillStyle(0xdc3d4b).fillRect(444, 322, 48, 15);
+  polishFlag.fillStyle(0xffffff, 0.15).fillTriangle(444, 307, 456, 307, 444, 337);
+  scene.add.text(370, 486, 'Casa lui F0ngel · E / click', { fontFamily: 'Arial', fontSize: '11px', color: '#fff0bf', stroke: '#344657', strokeThickness: 3 }).setOrigin(0.5).setDepth(30);
   const miganLabel = scene.add.text(420, 1044, '', { fontFamily: 'Arial', fontSize: '10px', color: '#fff0bf', stroke: '#344657', strokeThickness: 3 }).setOrigin(0.5).setDepth(30);
   const updateMiganDoor = () => miganLabel.setText(scene.winterQuest && scene.winterQuest.status !== 'blocked' ? 'Casa lui Miganul · E' : 'Casa lui Miganul');
   scene.events.on('update', updateMiganDoor); updateMiganDoor();

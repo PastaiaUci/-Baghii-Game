@@ -2,7 +2,7 @@ export const SAVE_KEY = 'the-redemption.save.v1';
 export const BACKUP_KEY = `${SAVE_KEY}.backup`;
 // Keep the storage keys stable; only the envelope version changes.
 export const SAVE_VERSION = 2;
-const TYPES = new Set(['empty', 'sword', 'coupon', 'book', 'health-potion', 'revival-beer', 'helmet', 'wind-boots', 'shield', 'flashlight', 'gold-medallion', 'winter-coat', 'migan-ointment']);
+const TYPES = new Set(['empty', 'sword', 'coupon', 'book', 'bobita-book', 'gold-necklace', 'health-potion', 'revival-beer', 'helmet', 'wind-boots', 'shield', 'flashlight', 'gold-medallion', 'winter-coat', 'migan-ointment', 'firewood']);
 const STATS = ['speed', 'strength', 'agility', 'intelligence', 'vitality'];
 const assert = (condition) => { if (!condition) throw new Error('Salvare invalidă sau deteriorată.'); };
 const number = (n, max = 1e9) => Number.isFinite(n) && n >= 0 && n <= max;
@@ -16,6 +16,7 @@ function item(value, index = 0) {
     if (value[field] !== undefined) { assert(number(value[field])); result[field] = value[field]; }
   }
   if (value.quantity !== undefined) assert(integer(value.quantity) && value.quantity > 0);
+  if (value.type === 'firewood') assert(value.quantity === 3);
   if (value.type === 'gold-medallion') assert(integer(value.quantity) && value.quantity > 0);
   if (value.type === 'helmet') assert(number(value.armorRemaining, 5));
   if (value.type === 'shield') assert(number(value.durability, 50) && value.durability > 0);
@@ -23,6 +24,7 @@ function item(value, index = 0) {
     result.statBonuses = {};
     for (const key of STATS) if (value.statBonuses[key] !== undefined) { assert(number(value.statBonuses[key], 10000)); result.statBonuses[key] = value.statBonuses[key]; }
   }
+  if (value.type === 'gold-necklace') result.statBonuses = { strength: 4, vitality: 6 };
   return result;
 }
 
@@ -32,7 +34,7 @@ export function validateSave(data) {
   assert(Array.isArray(data.inventory) && data.inventory.length >= 27 && data.inventory.length <= 100);
   assert(number(data.health) && data.stats && STATS.every((key) => integer(data.stats[key], 100000) && data.stats[key] >= 1));
   const equipment = {};
-  for (const [slot, type] of Object.entries({ helmet: 'helmet', boots: 'wind-boots', shield: 'shield', armor: 'winter-coat' })) {
+  for (const [slot, type] of Object.entries({ helmet: 'helmet', boots: 'wind-boots', shield: 'shield', armor: 'winter-coat', necklace: 'gold-necklace' })) {
     equipment[slot] = data.equipment?.[slot] ? item(data.equipment[slot]) : null;
     assert(!equipment[slot] || equipment[slot].type === type);
   }
@@ -62,13 +64,36 @@ export function validateSave(data) {
     assert(Array.isArray(values) && values.length <= 5000);
     return values.map((v) => { assert(number(v.x, 1600) && number(v.y, 1200) && (!gold || integer(v.value, 10000) && v.value > 0)); return gold ? { x: v.x, y: v.y, value: v.value, collected: Boolean(v.collected) } : { x: v.x, y: v.y }; });
   };
+  let mountainRescue = null;
+  if (data.mountainRescue) {
+    const q = data.mountainRescue;
+    assert(data.place === 'alpine' && luis?.status === 'completed' && winter?.status === 'ready');
+    assert(['searching', 'found', 'carrying', 'rescued', 'transporting', 'delivered', 'thawed'].includes(q.status) && integer(q.target, 17) && q.target >= 5);
+    assert(Array.isArray(q.broken) && q.broken.length <= 18 && q.broken.every((n) => integer(n, 17)) && integer(q.calls, 4));
+    assert(q.status === 'searching' ? !q.broken.includes(q.target) : q.broken.includes(q.target));
+    mountainRescue = { status: q.status, target: q.target, broken: [...new Set(q.broken)], calls: q.calls };
+    if (q.rewards) { assert(q.status === 'thawed'); mountainRescue.rewards = { book: Boolean(q.rewards.book), necklace: Boolean(q.rewards.necklace) }; }
+    if (q.firewood) {
+      const wood = q.firewood;
+      assert(['delivered', 'thawed'].includes(q.status) && ['needed', 'chopped', 'collected', 'burning'].includes(wood.stage));
+      assert(number(wood.hp, 4) && (wood.stage === 'needed' ? wood.hp > 0 : wood.hp === 0));
+      assert(q.status !== 'thawed' || wood.stage === 'burning');
+      assert(wood.stage !== 'collected' || data.inventory.some((i) => i.type === 'firewood' && i.quantity === 3));
+      mountainRescue.firewood = { stage: wood.stage, hp: wood.hp };
+    }
+  }
+  let bobita = null;
+  if (data.bobita) {
+    assert(mountainRescue?.status === 'thawed' && number(data.bobita.health, 25) && number(data.bobita.healRemaining ?? 5000, 5000));
+    bobita = { health: data.bobita.health, sleeping: Boolean(data.bobita.sleeping) || data.bobita.health === 0, healRemaining: data.bobita.healRemaining ?? 5000 };
+  }
   assert(Array.isArray(data.stones) && data.stones.length <= 10);
   const stones = data.stones.map((s) => { assert(integer(s.index, 9) && number(s.remaining, 35000)); return { index: s.index, remaining: s.remaining }; });
   const cooldowns = {};
   for (const key of ['rush', 'aura', 'breath', 'flashlight', 'potion']) { assert(number(data.cooldowns?.[key] ?? 0, 60000)); cooldowns[key] = data.cooldowns?.[key] || 0; }
   return { place: data.place, gold: data.gold, level: data.level, xp: data.xp, points: data.points, health: data.health,
     stats: Object.fromEntries(STATS.map((key) => [key, data.stats[key]])), inventory: data.inventory.map(item), equipment, flags, reward, party,
-    selected: /^slot-[1-5]$/.test(data.selected) ? data.selected : 'slot-1', villagers: [...data.villagers], tavern, luis, winter,
+    selected: /^slot-[1-5]$/.test(data.selected) ? data.selected : 'slot-1', villagers: [...data.villagers], tavern, luis, winter, mountainRescue, bobita,
     coins: drops(data.coins, true), medallions: drops(data.medallions), beerDrops: drops(data.beerDrops), stones, cooldowns,
     bootsSold: Boolean(data.bootsSold), audioVolume: number(data.audioVolume, 1) ? data.audioVolume : 0.7, audioEnabled: data.audioEnabled !== false };
 }

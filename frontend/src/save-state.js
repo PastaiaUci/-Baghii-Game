@@ -9,6 +9,7 @@ import { createChapterPortal, enterLevelTwo } from './chapter-two.js';
 import { dropBossLoot } from './boss-loot.js';
 import { revealBobitaTrail, updateLuisQuestHint } from './luis-quest.js';
 import { winterHint } from './winter-quest.js';
+import { showRescuedBobita } from './mountain-rescue.js';
 import { dropMedallion } from './metin-stones.js';
 import { dropRevivalBeer } from './party-health.js';
 import { potionCooldownRemaining } from './consumable-cooldown.js';
@@ -24,10 +25,11 @@ export function captureProgress(scene) {
   return {
     place, gold: scene.gold, level: scene.characterLevel || 1, xp: scene.characterXp || 0, points: scene.statPoints || 0,
     stats: { ...scene.characterStats }, health: scene.playerHealth, inventory: scene.inventory,
-    equipment: { helmet: scene.equippedHelmet || null, boots: scene.equippedBoots || null, shield: scene.equippedShield || null, armor: scene.equippedArmor || null },
+    equipment: { helmet: scene.equippedHelmet || null, boots: scene.equippedBoots || null, shield: scene.equippedShield || null, armor: scene.equippedArmor || null, necklace: scene.equippedNecklace || null },
     selected: scene.selectedWeapon, flags, reward: scene.bossLootState?.consumed || null,
     party: scene.partyTete ? { health: scene.partyTeteHealth, sleeping: scene.partyTeteSleeping } : null,
-    villagers: scene.npcs.map((v) => v.alive), tavern: scene.tavernQuest || null, luis: scene.luisQuest || null, winter: scene.winterQuest || null,
+    bobita: scene.bobitaUnlocked ? { health: scene.partyBobitaHealth, sleeping: scene.partyBobitaSleeping, healRemaining: scene.bobitaHealRemaining ?? 5000 } : null,
+    villagers: scene.npcs.map((v) => v.alive), tavern: scene.tavernQuest || null, luis: scene.luisQuest || null, winter: scene.winterQuest || null, mountainRescue: scene.mountainRescue || null,
     coins: scene.goldPickups.filter((p) => place !== 'alpine' || !p.collected).map((p) => ({ ...(p.savePosition || position(p)), value: p.value, collected: p.collected })),
     medallions: (scene.luisMedallions || []).filter((p) => !p.collected).map(position),
     beerDrops: (scene.partyBeerDrops || []).map(position),
@@ -47,6 +49,9 @@ export function restoreProgress(scene, data) {
   scene.tavernQuest = data.tavern ? structuredClone(data.tavern) : undefined;
   scene.luisQuest = data.luis ? { ...data.luis } : undefined;
   scene.winterQuest = data.winter ? structuredClone(data.winter) : undefined;
+  scene.mountainRescue = data.mountainRescue ? structuredClone(data.mountainRescue) : undefined;
+  scene.bobitaUnlocked = Boolean(data.bobita);
+  scene.partyBobitaHealth = data.bobita?.health ?? 25; scene.partyBobitaSleeping = data.bobita?.sleeping ?? false; scene.bobitaHealRemaining = data.bobita?.healRemaining ?? 5000;
   syncCharacterStats(scene);
   scene.npcs.forEach((v, index) => {
     if (!data.villagers[index]) {
@@ -90,6 +95,7 @@ export function restoreProgress(scene, data) {
     data.beerDrops.forEach((p) => dropRevivalBeer(scene, p.x, p.y));
     if (scene.luisQuest?.status === 'completed') revealBobitaTrail(scene); else updateLuisQuestHint(scene);
     winterHint(scene);
+    showRescuedBobita(scene);
   }
   scene.playerHealth = data.place === 'boss' && !scene.bossDefeated || data.health <= 0 ? scene.maxPlayerHealth : Math.min(data.health, scene.maxPlayerHealth);
   for (const [key, value] of Object.entries({ rushSkill: data.cooldowns.rush, swordAuraSkill: data.cooldowns.aura, deathBreath: data.cooldowns.breath })) scene[key].readyAt = value ? scene.time.now + value : 0;

@@ -1,5 +1,9 @@
 import { showDamage } from './combat-feedback.js';
+import { recordReceivedDamage, appendDeathSummary } from './death-summary.js';
 import { installSaveSystem } from './save-system.js';
+import { installQuestJournal } from './quest-journal.js';
+import { installBobitaParty } from './bobita-party.js';
+import { consumeBobitaMedallion } from './bobita-rewards.js';
 import Phaser from 'phaser';
 import { canInteract } from './interaction-range.js';
 import { installXpHud, characterName, awardEnemyXp } from './leveling.js';
@@ -24,7 +28,6 @@ import { toggleHelmet, createHelmetVisual, absorbArmorDamage, armorPoints } from
 import { deployPartyTete } from './party-storage.js';
 import { toggleGear, movementMultiplier, absorbShieldDamage, createGearVisual } from './gear.js';
 import { createSwordMotion, updateSwordMotion } from './sword-motion.js';
-import { createTestCheckpointNpc, clickTestCheckpoint } from './test-checkpoint.js';
 import { clickEmperorLuis, advanceLuisDialogue } from './emperor-luis.js';
 import { attackMetinTargets, updateMetinStones, showAlpineDeath } from './metin-stones.js';
 import { updatePartyCombat } from './party-combat.js';
@@ -34,6 +37,10 @@ import { updateQuestMinimap } from './quest-minimap.js';
 import { syncCharacterStats, derivedStats, physicalDamage, grantTeteVictoryPoints } from './character-stats.js';
 import { installStatsPanel } from './stats-panel.js';
 import { MiganHouseScene } from './migan-house.js';
+import { MountainScene } from './mountain-scene.js';
+import { MateiHouseScene } from './matei-house.js';
+import { interactMateiQuest, clickMateiQuest } from './matei-quest.js';
+import { chopSleigh } from './firewood-quest.js';
 import { clickWinterObject, enterMiganHouse, attemptMountainPortal, advanceWinterDialogue } from './winter-quest.js';
 import './style.css';
 import { createVillageGround, createVillageProps, createVillageTextures } from './village.js';
@@ -176,12 +183,12 @@ class FarmScene extends Phaser.Scene {
     createShop(this);
     createHelmetVisual(this);
     createGearVisual(this);
-    createTestCheckpointNpc(this);
     this.input.mouse.disableContextMenu();
     createGameAudio(this);
     installPauseMenu(this);
     this.refreshStatsUi = () => { updatePlayerHealth(this); this.updatePlayerHeadHealth(); };
     installStatsPanel(this);
+    installQuestJournal(this);
     installXpHud(this);
     createVillageCombat(this);
 
@@ -200,20 +207,20 @@ class FarmScene extends Phaser.Scene {
       const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
       if (clickEmperorLuis(this, worldPoint)) return;
       const selectedItem = getSelectedItem(this);
+      if (selectedItem?.type === 'gold-medallion' && consumeBobitaMedallion(this, selectedItem)) return;
       if (selectedItem?.type === 'revival-beer') { consumeRevivalBeer(this, selectedItem); return; }
       if (selectedItem?.type === 'party-tete') {
         deployPartyTete(this, selectedItem);
         return;
       }
-      if (clickWinterObject(this, worldPoint)) return;
+      if (clickMateiQuest(this, worldPoint) || clickWinterObject(this, worldPoint)) return;
       if (clickMedallion(this, worldPoint)) return;
       if (clickEmperorLuis(this, worldPoint)) return;
-      if (clickTestCheckpoint(this, worldPoint)) return;
       if (clickDicePlayer(this, worldPoint)) return;
       if (clickTavernDoor(this, worldPoint)) return;
       if (clickChapterPortal(this, worldPoint)) return;
       if (clickBossLoot(this, worldPoint)) return;
-      if (['wind-boots', 'shield', 'winter-coat'].includes(selectedItem?.type)) { toggleGear(this, selectedItem); return; }
+      if (['wind-boots', 'shield', 'winter-coat', 'gold-necklace'].includes(selectedItem?.type)) { toggleGear(this, selectedItem); return; }
       if (selectedItem?.type === 'helmet') {
         toggleHelmet(this, selectedItem);
         return;
@@ -274,9 +281,9 @@ class FarmScene extends Phaser.Scene {
       if (key === '5') this.selectWeapon('slot-5');
       if (key === 'e') {
         if (!this.inventoryUi.classList.contains('hidden')) { this.toggleInventory(false); return; }
-        if (attemptMountainPortal(this) || enterMiganHouse(this)) return;
+        if (interactMateiQuest(this) || attemptMountainPortal(this) || enterMiganHouse(this)) return;
         if (pickupNearbyMedallion(this)) return;
-        if (getSelectedItem(this)?.type === 'book') { openBook(this); return; }
+        if (['book', 'bobita-book'].includes(getSelectedItem(this)?.type)) { openBook(this, getSelectedItem(this)?.type); return; }
         if (tryEnterTavern(this)) return;
         if (!event.repeat && useChapterPortal(this)) return;
         if (!event.repeat && consumeNearbyBossLoot(this)) return;
@@ -291,7 +298,6 @@ class FarmScene extends Phaser.Scene {
         const candidates = [
           { npc: this.emperorLuis, talk: () => clickEmperorLuis(this, { x: this.emperorLuis.x, y: this.emperorLuis.y - 20 }) },
           { npc: this.couponKeeper, talk: () => { this.nearbyCouponKeeper = this.couponKeeper; this.buyCoupon(); return true; } },
-          { npc: this.testCheckpointNpc, talk: () => clickTestCheckpoint(this, this.testCheckpointNpc) },
           ...(this.dicePlayers || []).map(({ sprite }) => ({ npc: sprite, talk: () => clickDicePlayer(this, sprite) })),
           { npc: this.shopLocation, talk: () => { this.openNearbyShop(); return true; } },
         ].filter(({ npc }) => npc?.visible && canInteract(this, npc))
@@ -319,6 +325,7 @@ class FarmScene extends Phaser.Scene {
     this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
     this.cameras.main.setZoom(1.4);
     installSaveSystem(this);
+    installBobitaParty(this);
   }
 
   createWorldGround() {
@@ -672,6 +679,10 @@ class FarmScene extends Phaser.Scene {
         `;
       } else if (item.type === 'revival-beer') {
         itemNode.className = 'hotbar-item'; itemNode.innerHTML = `<span class="revival-beer-icon">🍺</span><span class="item-quantity">${item.quantity || 1}</span>`;
+      } else if (item.type === 'gold-necklace') {
+        itemNode.className = 'hotbar-item'; itemNode.innerHTML = '<span class="gold-necklace-icon"></span>';
+      } else if (item.type === 'firewood') {
+        itemNode.className = 'hotbar-item'; itemNode.innerHTML = '<img class="firewood-icon" src="/assets/icons/firewood.svg" alt="Lemne de foc"><span class="item-quantity">3</span>';
       } else if (item.type === 'gold-medallion') {
         itemNode.className = 'hotbar-item'; itemNode.innerHTML = `<img class="medallion-icon" src="/assets/Bobita/medalion.png" alt="Medalion de aur"><span class="item-quantity">${item.quantity}</span>`;
       } else if (item.type === 'winter-coat' || item.type === 'migan-ointment') {
@@ -690,9 +701,9 @@ class FarmScene extends Phaser.Scene {
       } else if (item.type === 'flashlight') {
         itemNode.className = 'hotbar-item';
         itemNode.innerHTML = '<span class="flashlight-icon"></span>';
-      } else if (item.type === 'book') {
+      } else if (['book', 'bobita-book'].includes(item.type)) {
         itemNode.className = 'hotbar-item';
-        itemNode.innerHTML = '<span class="book-icon">I</span>';
+        itemNode.innerHTML = '<span class="book-icon">' + (item.type === 'bobita-book' ? 'II' : 'I') + '</span>';
       } else if (item.type === 'health-potion') {
         itemNode.className = 'hotbar-item';
         itemNode.innerHTML = `<span class="health-potion-icon">+</span><span class="item-quantity">${item.quantity || 1}</span>`;
@@ -720,7 +731,7 @@ class FarmScene extends Phaser.Scene {
 
     this.inventoryList = this.inventoryUi.querySelector('.inventory-list');
     const helmetSlot = this.inventoryUi.querySelector('[data-equipment="helmet"]');
-    for (const [slotName, property] of [['boots', 'equippedBoots'], ['shield', 'equippedShield'], ['armor', 'equippedArmor']]) {
+    for (const [slotName, property] of [['boots', 'equippedBoots'], ['shield', 'equippedShield'], ['armor', 'equippedArmor'], ['necklace', 'equippedNecklace']]) {
       const slot = this.inventoryUi.querySelector(`[data-equipment="${slotName}"]`);
       slot.setAttribute('role', 'button'); slot.tabIndex = 0;
       slot.addEventListener('click', () => toggleGear(this, this[property]));
@@ -734,9 +745,10 @@ class FarmScene extends Phaser.Scene {
     this.inventoryList.addEventListener('click', (event) => {
       if (this.game.loop.now < (this.inventoryClickBlockedUntil || 0)) return;
       const slot = event.target.closest('[data-inventory-index]');
+      if (slot && this.inventory[Number(slot.dataset.inventoryIndex)]?.type === 'gold-medallion' && (event.type === 'click' || ['Enter', ' '].includes(event.key))) { event.preventDefault(); consumeBobitaMedallion(this, this.inventory[Number(slot.dataset.inventoryIndex)]); }
       if (slot && this.inventory[Number(slot.dataset.inventoryIndex)]?.type === 'revival-beer') consumeRevivalBeer(this, this.inventory[Number(slot.dataset.inventoryIndex)]);
-      if (slot && ['wind-boots', 'shield', 'winter-coat'].includes(this.inventory[Number(slot.dataset.inventoryIndex)]?.type)) toggleGear(this, this.inventory[Number(slot.dataset.inventoryIndex)]);
-      if (slot && this.inventory[Number(slot.dataset.inventoryIndex)]?.type === 'book') openBook(this);
+      if (slot && ['wind-boots', 'shield', 'winter-coat', 'gold-necklace'].includes(this.inventory[Number(slot.dataset.inventoryIndex)]?.type)) toggleGear(this, this.inventory[Number(slot.dataset.inventoryIndex)]);
+      if (slot && ['book', 'bobita-book'].includes(this.inventory[Number(slot.dataset.inventoryIndex)]?.type)) openBook(this, this.inventory[Number(slot.dataset.inventoryIndex)].type);
       if (slot && this.inventory[Number(slot.dataset.inventoryIndex)]?.type === 'helmet') toggleHelmet(this, this.inventory[Number(slot.dataset.inventoryIndex)]);
       if (slot && this.inventory[Number(slot.dataset.inventoryIndex)]?.type === 'party-tete') deployPartyTete(this, this.inventory[Number(slot.dataset.inventoryIndex)]);
       if (slot && this.inventory[Number(slot.dataset.inventoryIndex)]?.type === 'health-potion') useHealthPotion(this, Number(slot.dataset.inventoryIndex));
@@ -744,10 +756,11 @@ class FarmScene extends Phaser.Scene {
     this.inventoryList.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' || event.key === ' ') {
         const slot = event.target.closest('[data-inventory-index]');
+      if (slot && this.inventory[Number(slot.dataset.inventoryIndex)]?.type === 'gold-medallion' && (event.type === 'click' || ['Enter', ' '].includes(event.key))) { event.preventDefault(); consumeBobitaMedallion(this, this.inventory[Number(slot.dataset.inventoryIndex)]); }
         if (slot && this.inventory[Number(slot.dataset.inventoryIndex)]?.type === 'revival-beer') {
           event.preventDefault(); consumeRevivalBeer(this, this.inventory[Number(slot.dataset.inventoryIndex)]);
         }
-        if (slot && ['wind-boots', 'shield', 'winter-coat'].includes(this.inventory[Number(slot.dataset.inventoryIndex)]?.type)) {
+        if (slot && ['wind-boots', 'shield', 'winter-coat', 'gold-necklace'].includes(this.inventory[Number(slot.dataset.inventoryIndex)]?.type)) {
           event.preventDefault(); toggleGear(this, this.inventory[Number(slot.dataset.inventoryIndex)]);
         }
         if (slot && this.inventory[Number(slot.dataset.inventoryIndex)]?.type === 'party-tete') {
@@ -756,9 +769,9 @@ class FarmScene extends Phaser.Scene {
         if (slot && this.inventory[Number(slot.dataset.inventoryIndex)]?.type === 'helmet') {
           event.preventDefault(); toggleHelmet(this, this.inventory[Number(slot.dataset.inventoryIndex)]);
         }
-        if (slot && this.inventory[Number(slot.dataset.inventoryIndex)]?.type === 'book') {
+        if (slot && ['book', 'bobita-book'].includes(this.inventory[Number(slot.dataset.inventoryIndex)]?.type)) {
           event.preventDefault();
-          openBook(this);
+          openBook(this, this.inventory[Number(slot.dataset.inventoryIndex)].type);
         }
         if (slot && this.inventory[Number(slot.dataset.inventoryIndex)]?.type === 'health-potion') {
           event.preventDefault();
@@ -809,10 +822,10 @@ class FarmScene extends Phaser.Scene {
                 <span class="coupon-ticket"></span>
               </div>
             `
-            : item.type === 'winter-coat' ? '<span class="winter-coat-icon"></span>' : item.type === 'migan-ointment' ? '<span class="ointment-icon"></span>' : item.type === 'revival-beer' ? `<span class="revival-beer-icon">🍺</span><span class="item-quantity">${item.quantity || 1}</span>` : item.type === 'gold-medallion' ? `<img class="medallion-icon" src="/assets/Bobita/medalion.png" alt="Medalion de aur"><span class="item-quantity">${item.quantity}</span>` : item.type === 'wind-boots' ? '<span class="boots-icon"></span>' : item.type === 'shield' ? '<span class="shield-icon"></span>' : item.type === 'party-tete' ? '<img class="tete-item-icon" src="/assets/Tete.png" alt="Tete">' : item.type === 'helmet' ? '<span class="helmet-icon"></span>' : item.type === 'flashlight' ? '<span class="flashlight-icon"></span>' : item.type === 'book' ? '<span class="book-icon">I</span>' : item.type === 'health-potion' ? `<span class="health-potion-icon">+</span><span class="item-quantity">${item.quantity || 1}</span>` : '';
+            : item.type === 'gold-necklace' ? '<span class="gold-necklace-icon"></span>' : item.type === 'firewood' ? '<img class="firewood-icon" src="/assets/icons/firewood.svg" alt="Lemne de foc"><span class="item-quantity">3</span>' : item.type === 'winter-coat' ? '<span class="winter-coat-icon"></span>' : item.type === 'migan-ointment' ? '<span class="ointment-icon"></span>' : item.type === 'revival-beer' ? `<span class="revival-beer-icon">🍺</span><span class="item-quantity">${item.quantity || 1}</span>` : item.type === 'gold-medallion' ? `<img class="medallion-icon" src="/assets/Bobita/medalion.png" alt="Medalion de aur"><span class="item-quantity">${item.quantity}</span>` : item.type === 'wind-boots' ? '<span class="boots-icon"></span>' : item.type === 'shield' ? '<span class="shield-icon"></span>' : item.type === 'party-tete' ? '<img class="tete-item-icon" src="/assets/Tete.png" alt="Tete">' : item.type === 'helmet' ? '<span class="helmet-icon"></span>' : item.type === 'flashlight' ? '<span class="flashlight-icon"></span>' : ['book', 'bobita-book'].includes(item.type) ? '<span class="book-icon">' + (item.type === 'bobita-book' ? 'II' : 'I') + '</span>' : item.type === 'health-potion' ? `<span class="health-potion-icon">+</span><span class="item-quantity">${item.quantity || 1}</span>` : '';
 
         return `
-          <div class="inventory-slot ${item.type === 'empty' ? 'empty' : ''} ${index < 5 ? 'hotbar-linked' : ''} ${item === this.equippedHelmet ? 'item-equipped' : ''}" data-inventory-index="${index}" draggable="${item.type !== 'empty'}" ${['book', 'health-potion', 'helmet', 'party-tete', 'wind-boots', 'shield', 'winter-coat', 'revival-beer'].includes(item.type) ? 'role="button" tabindex="0"' : ''} title="${item.label}">
+          <div class="inventory-slot ${item.type === 'empty' ? 'empty' : ''} ${index < 5 ? 'hotbar-linked' : ''} ${item === this.equippedHelmet ? 'item-equipped' : ''}" data-inventory-index="${index}" draggable="${item.type !== 'empty'}" ${['bobita-book', 'gold-necklace', 'gold-medallion', 'book', 'health-potion', 'helmet', 'party-tete', 'wind-boots', 'shield', 'winter-coat', 'revival-beer'].includes(item.type) ? 'role="button" tabindex="0"' : ''} title="${item.label}">
             ${content}
             ${index < 5 ? '<span class="inventory-hotbar-label">HOTBAR</span>' : ''}
             <span class="slot-number">${index + 1}</span>
@@ -1133,6 +1146,7 @@ class FarmScene extends Phaser.Scene {
     this.attackOriginAngle = attackAngle + Math.PI / 2;
 
     let hit = attackMetinTargets(this, targetX, targetY, physicalDamage(this, 1) + swordAuraBonus(this, 'villager'));
+    if (chopSleigh(this, targetX, targetY, physicalDamage(this, 1) + swordAuraBonus(this, 'villager'))) hit = true;
 
     if (this.bossFightActive && this.boss) {
       const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.boss.x, this.boss.y);
@@ -1364,6 +1378,7 @@ class FarmScene extends Phaser.Scene {
     this.deathScreen = document.createElement('div');
     this.deathScreen.className = 'chapter-dialogue death-dialogue';
     this.deathScreen.innerHTML = '<section role="dialog" aria-modal="true" aria-labelledby="death-dialogue-title"><img src="/assets/Gdolf.png" alt="Gdolf"><div><small>GDOLF · AI MURIT</small><h2 id="death-dialogue-title">Mai încerc o dată</h2><p>Bagamias pula am murit nu mai e vremea de trait dar reincer iara coaie ce as suge pula</p><button type="button">Reîncepe lupta →</button></div></section>';
+    appendDeathSummary(this.deathScreen, this);
     document.body.appendChild(this.deathScreen);
     const retryButton = this.deathScreen.querySelector('button');
     retryButton.focus();
@@ -1481,7 +1496,7 @@ class FarmScene extends Phaser.Scene {
     dropBossLoot(this, dropX, dropY);
   }
 
-  damagePlayer(amount) {
+  damagePlayer(amount, source) {
     if ((!this.bossFightActive && !this.villageEnraged && this.currentLevel !== 2) || this.gameOver || this.playerHealth <= 0) {
       return;
     }
@@ -1493,6 +1508,7 @@ class FarmScene extends Phaser.Scene {
 
     const previousHealth = this.playerHealth;
     this.playerHealth = Math.max(0, this.playerHealth - absorbArmorDamage(this, absorbShieldDamage(this, amount)));
+    recordReceivedDamage(this, source, previousHealth - this.playerHealth);
     showDamage(this, this.player, previousHealth - this.playerHealth, '#ffb0a0');
     updatePlayerHealth(this);
     this.updatePlayerHeadHealth();
@@ -1843,7 +1859,7 @@ const game = new Phaser.Game({
       gravity: { y: 0 },
     },
   },
-  scene: [FarmScene, TavernScene, MiganHouseScene],
+  scene: [FarmScene, TavernScene, MiganHouseScene, MountainScene, MateiHouseScene],
 });
 
 window.game = game;

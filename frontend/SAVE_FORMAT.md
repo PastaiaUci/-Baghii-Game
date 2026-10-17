@@ -46,3 +46,28 @@ detect conflicts with checksums and ancestry; never resolve them using timestamp
 alone. Keep both conflicting snapshots until the player chooses one. Client
 checksums detect corruption, not cheating or tampering; server-authoritative
 progress requires separate validation.
+
+## Mountain rescue
+
+The optional `data.mountainRescue` field records the search stage, fixed hidden
+stone index, broken stone indices, and completed calls to Bobita. Missing fields
+in older saves default to no expedition. Reloading resumes outside in the alpine
+village; entering the portal restores the expedition. A discovered or carried
+Bobita resumes at the summit, and a rescued Bobita reappears beside Luis. Partial
+stone damage resets on re-entry; broken stones and the hidden target persist.
+
+The later `transporting`, `delivered`, and `thawed` stages track the journey to
+Matei's house. Transport resumes with Bobita carried in the village. Delivered
+Bobita stays inside the house; an interrupted thaw animation restarts safely on
+re-entry. Thawed Bobita remains warm in the house without replaying the rescue.
+
+An optional `mountainRescue.firewood` object stores the `needed`, `chopped`,
+`collected`, or `burning` stage and remaining sleigh HP (0–4). Collected wood is
+one inventory stack of three `firewood` items and is consumed once on delivery.
+Older delivered saves begin the firewood quest; already-thawed saves stay complete.
+
+Optional `mountainRescue.rewards` flags record the book and necklace separately,
+so full inventories defer each reward without duplication. The optional `bobita`
+payload persists HP, sleep/death state and remaining heal cooldown. The necklace
+has its own equipment slot; its fixed bonuses are validated as +4 strength and
++6 vitality. Older thawed saves receive the new rewards and companion on load.

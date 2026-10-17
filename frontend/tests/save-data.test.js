@@ -15,6 +15,43 @@ function sample() {
 }
 function storage() { const map = new Map(); return { map, getItem: (key) => map.get(key) ?? null, setItem: (key, value) => map.set(key, value), removeItem: (key) => map.delete(key) }; }
 
+test('Bobita party health, cooldown, reward flags, book and equipped necklace survive saving', () => {
+  const data = sample(); data.place = 'alpine'; data.flags.bossDefeated = true; data.reward = 'beer';
+  data.luis = { status: 'completed', count: 3 }; data.winter = { status: 'ready', opened: [], correctChest: null };
+  data.mountainRescue = { status: 'thawed', target: 8, broken: [8], calls: 4, rewards: { book: true, necklace: true } };
+  data.bobita = { health: 0, sleeping: true, healRemaining: 3200 };
+  data.equipment.necklace = { type: 'gold-necklace', statBonuses: { strength: 4, vitality: 6 } }; data.inventory[5] = { type: 'bobita-book' };
+  const loaded = decodeSave(encodeSave(data)).data;
+  assert.deepEqual(loaded.bobita, data.bobita); assert.deepEqual(loaded.mountainRescue.rewards, data.mountainRescue.rewards);
+  assert.deepEqual(loaded.equipment.necklace.statBonuses, { strength: 4, vitality: 6 }); assert.equal(loaded.inventory[5].type, 'bobita-book');
+  data.bobita.health = 26; assert.throws(() => encodeSave(data));
+});
+
+test('mountain rescue survives export at every stage while old saves remain compatible', () => {
+  const data = sample();
+  assert.equal(decodeSave(encodeSave(data)).data.mountainRescue, null);
+  data.place = 'alpine'; data.flags.bossDefeated = true; data.reward = 'beer';
+  data.luis = { status: 'completed', count: 3 }; data.winter = { status: 'ready', opened: [2], correctChest: 2 };
+  for (const status of ['searching', 'found', 'carrying', 'rescued', 'transporting', 'delivered', 'thawed']) {
+    data.mountainRescue = { status, target: 8, broken: status === 'searching' ? [1, 4] : [1, 4, 8], calls: 4 };
+    assert.deepEqual(decodeSave(encodeSave(data)).data.mountainRescue, data.mountainRescue);
+  }
+  data.mountainRescue.target = 999; assert.throws(() => encodeSave(data));
+  data.mountainRescue.target = 8; data.mountainRescue.broken = []; assert.throws(() => encodeSave(data));
+});
+
+test('firewood progress, sleigh damage and collected quest items survive save validation', () => {
+  const data = sample(); data.place = 'alpine'; data.flags.bossDefeated = true; data.reward = 'beer';
+  data.luis = { status: 'completed', count: 3 }; data.winter = { status: 'ready', opened: [], correctChest: null };
+  data.mountainRescue = { status: 'delivered', target: 8, broken: [8], calls: 4 };
+  for (const stage of ['needed', 'chopped', 'collected', 'burning']) {
+    data.mountainRescue.firewood = { stage, hp: stage === 'needed' ? 2.5 : 0 };
+    data.inventory[4] = stage === 'collected' ? { type: 'firewood', quantity: 3 } : { type: 'empty' };
+    assert.deepEqual(decodeSave(encodeSave(data)).data.mountainRescue, data.mountainRescue);
+  }
+  data.mountainRescue.firewood.stage = 'collected'; assert.throws(() => encodeSave(data));
+});
+
 function legacySave() {
   const payload = { version: 1, game: 'The Redemption', savedAt: '2026-10-17T10:00:00.000Z', data: decodeSave(encodeSave(sample())).data };
   let n = 2166136261; const text = JSON.stringify(payload);
