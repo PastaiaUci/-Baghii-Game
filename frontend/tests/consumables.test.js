@@ -15,9 +15,23 @@ test('map two consumables have repeatable purchases and stack even when inventor
 test('potion restores 10, consumes exactly one and preserves the last empty slot', () => {
   const s = scene(); addConsumable(s, 'health-potion', 3); s.maxPlayerHealth = 40; s.playerHealth = 15;
   assert.equal(applyHealthPotion(s, 0), 10); assert.equal(s.inventory[0].quantity, 2);
+  s.time = { now: 3000 };
   assert.equal(applyHealthPotion(s, 0), 10); assert.equal(s.inventory[0].quantity, 1);
+  s.time.now = 6000;
   assert.equal(applyHealthPotion(s, 0), 5); assert.equal(s.inventory[0].type, 'empty');
   addConsumable(s, 'health-potion'); assert.equal(applyHealthPotion(s, 0), 0); assert.equal(s.inventory[0].quantity, 1);
+});
+
+test('potions share a three-second cooldown and failed use never consumes an item', () => {
+  const s = scene(); s.game = { loop: { now: 1000 } };
+  addConsumable(s, 'health-potion', 3); s.maxPlayerHealth = 40; s.playerHealth = 5;
+  assert.equal(applyHealthPotion(s, 0), 10);
+  assert.equal(applyHealthPotion(s, 0), 0); assert.equal(s.inventory[0].quantity, 2);
+  s.game.loop.now = 3999; assert.equal(applyHealthPotion(s, 0), 0);
+  s.game.loop.now = 4000; assert.equal(applyHealthPotion(s, 0), 10);
+  assert.equal(s.inventory[0].quantity, 1); assert.equal(s.playerHealth, 25);
+  s.game.loop.now = 7000; s.playerHealth = 40;
+  assert.equal(applyHealthPotion(s, 0), 0); assert.equal(s.potionReadyAt, 7000);
 });
 test('beer restores 3 HP to Tete and caps at 25 without wasting beer at full health', () => {
   const s = scene(); addConsumable(s, 'revival-beer', 3); s.partyTete = {}; s.partyTeteHealth = 21;

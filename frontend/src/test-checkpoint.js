@@ -1,3 +1,4 @@
+import { canInteract } from './interaction-range.js';
 import { showNpcDialogue, hideNpcDialogue } from './dialogue.js';
 import { clearBossAttacks, updatePlayerHealth } from './boss.js';
 import { joinParty, giveVictoryBook } from './completion.js';
@@ -60,6 +61,7 @@ export function createTestCheckpointNpc(scene) {
 export function clickTestCheckpoint(scene, point) {
   const npc = scene.testCheckpointNpc;
   if (!npc?.visible || scene.testCheckpointUsed || scene.currentLevel === 2 || Math.abs(point.x - npc.x) > 23 || point.y < npc.y - 45 || point.y > npc.y + 22) return false;
+  if (!canInteract(scene, npc)) return true;
   showNpcDialogue(scene, 'Tester · Checkpoint Nivelul 2', 'Doar pentru testare: sari direct în Austria cu Tete învins și în party (25 HP), sabie, cupon, carte, poțiune, cască echipată și 1000 gold pentru testarea magazinului. Progresul curent este înlocuit. Alege recompensa lui Tete sau apasă Continuă ca să joci normal.');
   const actions = document.createElement('div'); actions.className = 'test-checkpoint-actions';
   for (const [reward, text] of [['beer', 'Testează cu Bere · Death Breath'], ['sperma', 'Testează cu Sperma · Flashlight']]) {

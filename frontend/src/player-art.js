@@ -1,23 +1,24 @@
 // Keep the original 32×40 frame and foot position so collision and equipment stay aligned.
-export function drawGdolf(scene, leftStep, rightStep, leftArm, rightArm, breathing = false) {
-  const g = scene.make.graphics();
-  const bob = leftStep ? 1 : breathing ? -1 : 0;
+export function drawGdolf(scene, leftStep, rightStep, leftArm, rightArm, breathing = false, motion = {}) {
+  const g = motion.graphics || scene.make.graphics();
+  const bob = motion.bob ?? (leftStep ? 1 : breathing ? -1 : 0);
+  const leftLift = motion.leftLift || 0, rightLift = motion.rightLift || 0;
   // Boots and trousers: alternating knees give the walking frames a clear gait.
   g.fillStyle(0x202b3c);
-  g.fillRect(9 + leftStep, 27, 6, 10);
-  g.fillRect(18 + rightStep, 27, 6, 10);
+  g.fillRect(9 + leftStep, 27 - leftLift, 6, 10);
+  g.fillRect(18 + rightStep, 27 - rightLift, 6, 10);
   g.fillStyle(0x46576c);
-  g.fillRect(10 + leftStep, 29, 2, 6);
-  g.fillRect(19 + rightStep, 29, 2, 6);
+  g.fillRect(10 + leftStep, 29 - leftLift, 2, 6);
+  g.fillRect(19 + rightStep, 29 - rightLift, 2, 6);
   g.fillStyle(0x231f25);
-  g.fillRect(8 + leftStep, 35, 8, 4);
-  g.fillRect(17 + rightStep, 35, 8, 4);
+  g.fillRect(8 + leftStep, 35 - leftLift, 8, 4);
+  g.fillRect(17 + rightStep, 35 - rightLift, 8, 4);
   g.fillStyle(0x8c6c4e);
-  g.fillRect(9 + leftStep, 35, 5, 1);
-  g.fillRect(18 + rightStep, 35, 5, 1);
+  g.fillRect(9 + leftStep, 35 - leftLift, 5, 1);
+  g.fillRect(18 + rightStep, 35 - rightLift, 5, 1);
   g.fillStyle(0x48383a);
-  g.fillRect(8 + leftStep, 38, 8, 1);
-  g.fillRect(17 + rightStep, 38, 8, 1);
+  g.fillRect(8 + leftStep, 38 - leftLift, 8, 1);
+  g.fillRect(17 + rightStep, 38 - rightLift, 8, 1);
   // Short navy coat, leather belt and diagonal shoulder strap.
   g.fillStyle(0x1b2636);
   g.fillRect(6, 19 + bob, 20, 11);
@@ -37,7 +38,7 @@ export function drawGdolf(scene, leftStep, rightStep, leftArm, rightArm, breathi
   g.fillStyle(0x40362e);
   g.fillRect(16, 29, 2, 1);
   // Sleeves, bracers and gloved hands.
-  [[3 + leftArm, 20], [25 + rightArm, 20]].forEach(([x, y]) => {
+  [[3 + leftArm, 20 + (motion.armSwing || 0)], [25 + rightArm, 20 - (motion.armSwing || 0)]].forEach(([x, y]) => {
     g.fillStyle(0x202c3d).fillRect(x, y + bob, 4, 11);
     g.fillStyle(0x537f9b).fillRect(x, y + bob, 3, 5);
     g.fillStyle(0x74513b).fillRect(x, y + 5 + bob, 4, 3);
@@ -66,6 +67,36 @@ export function drawGdolf(scene, leftStep, rightStep, leftArm, rightArm, breathi
   return g;
 }
 
-export function getGdolfIdleTexture(now) {
-  return Math.sin(now / 400) > 0.25 ? 'player-idle-breath' : 'player';
+export function getGdolfPose(player) {
+  return player?.visualPose || { bob: 0, step: 0, leftLift: 0, rightLift: 0, armSwing: 0 };
+}
+
+export function gdolfMotionPose(elapsed, moving) {
+  const phase = elapsed / (moving ? 512 : 2400) * Math.PI * 2;
+  return moving ? { bob: (1 - Math.cos(phase * 2)) * 0.3, step: Math.sin(phase) * 1.25,
+    leftLift: Math.max(0, Math.sin(phase)) * 1.7, rightLift: Math.max(0, -Math.sin(phase)) * 1.7, armSwing: Math.sin(phase) * 0.6 } :
+    { bob: -(1 - Math.cos(phase)) * 0.3, step: 0, leftLift: 0, rightLift: 0, armSwing: Math.sin(phase) * 0.12 };
+}
+
+export function updateGdolfAnimation(scene, moving) {
+  const player = scene.player;
+  if (!scene.gdolfVisual) {
+    scene.gdolfVisual = scene.add.graphics();
+    const sync = () => {
+      const visible = player.active && player.visible && !player.isTinted;
+      scene.gdolfVisual.setVisible(visible).setPosition(player.x - 16, player.y - 20).setDepth(player.depth + 0.001);
+      player.setAlpha(player.isTinted ? 1 : 0);
+    };
+    scene.events.on('postupdate', sync);
+    scene.events.once('shutdown', () => { scene.events.off('postupdate', sync); scene.gdolfVisual = null; });
+  }
+  const dt = Math.min(scene.game.loop.delta, 50);
+  const pace = Math.max(0.6, Math.min(1.8, Math.hypot(player.body.velocity.x, player.body.velocity.y) / 180));
+  player.motionElapsed = (player.motionElapsed || 0) + dt * (moving ? pace : 1);
+  const desired = gdolfMotionPose(player.motionElapsed, moving);
+  player.visualPose ||= { ...desired };
+  const blend = 1 - Math.exp(-dt / 55);
+  for (const key of Object.keys(desired)) player.visualPose[key] += (desired[key] - player.visualPose[key]) * blend;
+  const pose = player.visualPose;
+  drawGdolf(scene, pose.step, -pose.step, -pose.step * 0.7, pose.step * 0.7, false, { ...pose, graphics: scene.gdolfVisual.clear() });
 }

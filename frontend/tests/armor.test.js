@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buyHelmet, toggleHelmet, absorbArmorDamage, armorPoints } from '../src/armor.js';
 
-const scene = (gold = 200) => ({ gold, inventory: [{ type: 'empty' }, { type: 'empty' }], updateGoldHud() {}, updateInventoryList() {}, updateHotbarState() {} });
-test('helmet costs 200, uses one inventory slot and cannot be bought twice', () => {
+const scene = (gold = 40) => ({ gold, inventory: [{ type: 'empty' }, { type: 'empty' }], updateGoldHud() {}, updateInventoryList() {}, updateHotbarState() {} });
+test('helmet costs 40, uses one inventory slot and cannot be bought twice', () => {
   const s = scene(); buyHelmet(s);
   assert.equal(s.gold, 0); assert.equal(s.inventory[0].type, 'helmet');
-  s.gold = 200; buyHelmet(s); assert.equal(s.gold, 200);
-  const poor = scene(199); buyHelmet(poor); assert.equal(poor.gold, 199); assert.equal(poor.inventory[0].type, 'empty');
-  const full = scene(); full.inventory = [{ type: 'sword' }]; buyHelmet(full); assert.equal(full.gold, 200);
+  s.gold = 40; buyHelmet(s); assert.equal(s.gold, 40);
+  const poor = scene(39); buyHelmet(poor); assert.equal(poor.gold, 39); assert.equal(poor.inventory[0].type, 'empty');
+  const full = scene(); full.inventory = [{ type: 'sword' }]; buyHelmet(full); assert.equal(full.gold, 40);
 });
 test('equipped helmet absorbs five damage, preserves wear through swapping and unequipping', () => {
   const s = scene(); buyHelmet(s); const helmet = s.inventory[0];

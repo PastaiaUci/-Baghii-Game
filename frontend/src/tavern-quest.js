@@ -1,6 +1,7 @@
 import { showNpcDialogue, hideNpcDialogue } from './dialogue.js';
 import { grantHealthPotion } from './health-potion.js';
 import { playSound } from './audio.js';
+import { grantXp } from './leveling.js';
 
 export const WAKE_ROUNDS = [
   { prompt: 'Sniku mormăie: „Miruna… unde mergem, mă?”', answer: 'mall', choices: [
@@ -48,6 +49,7 @@ export function updateTavernQuestHint(scene) {
     inactive: 'Misiune opțională · Vorbește cu Haralamb sau Chinezu.',
     active: 'Trezește-l pe Sniku · Alege replicile potrivite, apoi revino la Haralamb.',
     walking: 'Sniku s-a trezit · Așteaptă să ajungă la bar și să comande o bere.',
+    serving: 'Barmanul îi toarnă lui Sniku băutura · Așteaptă să fie servit.',
     ready: 'Înapoi la Haralamb · Recompensă: o poțiune de +10 viață.',
     completed: 'Misiune încheiată · Sniku s-a trezit, poțiunea a fost primită.',
   };
@@ -64,10 +66,11 @@ export function talkToTavernNpc(scene, name, fallback) {
       quest.status = 'active'; quest.step = 0;
       line = name === 'Haralamb' ? 'Gdolf, eu și Chinezu avem o rugăminte: trezește-l pe Sniku! Întreabă-l de Miruna, de mall, de Pavel și de Daria de la Robosapiens. Dacă-l aduci pe picioare, întoarce-te la mine și primești o poțiune care reface 10 viață.' : 'Eu și Haralamb nu-l putem trezi pe Sniku. Poate reușești tu cu niște replici cunoscute! După ce se ridică și comandă o bere, Haralamb îți dă o poțiune de 10 viață.';
     } else if (quest.status === 'active') line = 'Sniku e încă pe jos. Încearcă replicile despre Miruna și mall, „Pavel, nu fi prost!” și Daria de la Robosapiens.';
-    else if (quest.status === 'walking') line = 'L-ai trezit! Lasă-l să ajungă la bar și să comande berea, apoi vorbim de recompensă.';
+    else if (['walking', 'serving'].includes(quest.status)) line = 'L-ai trezit! Lasă-l să ajungă la bar și să primească băutura, apoi vorbim de recompensă.';
     else if (quest.status === 'ready' && name === 'Haralamb') {
       if (grantHealthPotion(scene.farm)) {
         quest.status = 'completed';
+        grantXp(scene.farm, 75);
         line = 'Ai reușit, Gdolf! Sniku s-a trezit și deja cere o bere. Poftim poțiunea promisă: îți reface 10 viață. O găsești în inventar, pe I.';
       } else line = 'Am poțiunea ta, dar inventarul e plin. Eliberează un loc și revino la mine.';
     } else if (quest.status === 'ready') line = 'Bravo, l-ai pus pe picioare! Mergi la Haralamb pentru poțiunea promisă.';
@@ -75,6 +78,7 @@ export function talkToTavernNpc(scene, name, fallback) {
   } else if (name === 'Sniku') {
     if (quest.status === 'active') { showWakeChoices(scene); return; }
     if (quest.status === 'walking') line = 'Mergem la mall, nebun… dar mai întâi la bar. Am de comandat o bere!';
+    else if (quest.status === 'serving') line = 'O băutură, șefu’! Aștept să-mi toarne barmanul și după aia mergem la mall.';
     else if (quest.status === 'ready' || quest.status === 'completed') line = 'O bere, șefu’! Miruna și mall-ul pot să mai aștepte un minut. Pavel, nu fi prost!';
     else line = 'Mmm… Miruna… mall… încă cinci minute…';
   }
@@ -136,17 +140,26 @@ export function startSnikuWalk(scene) {
     label.setPosition(group.x, group.y - 34);
   };
   scene.tweens.add({
-    targets: group, x: 680, y: 218, duration: Math.max(300, Math.hypot(group.x - 680, group.y - 218) / 75 * 1000),
+    targets: group, x: 580, y: 218, duration: Math.max(300, Math.hypot(group.x - 580, group.y - 218) / 75 * 1000),
     onUpdate: () => { update(); sprite.setTexture(`tavern-sniku-walk-${Math.floor(scene.time.now / 160) % 2 + 1}`); },
     onComplete: () => {
-      quest.status = 'ready'; scene.snikuWalking = false;
+      quest.status = 'serving'; scene.snikuWalking = false;
       sprite.setTexture('tavern-sniku'); update();
-      addSnikuBeer(scene);
       const order = scene.add.text(group.x, group.y - 57, 'O bere, șefu’!', { fontFamily: 'Arial', fontSize: '12px', color: '#ffe7b0', stroke: '#30221c', strokeThickness: 3 }).setOrigin(0.5).setDepth(30);
       scene.time.delayedCall(3200, () => order.destroy());
-      playSound(scene.farm, 'clink');
+      serveSnikuAtBar(scene);
       updateTavernQuestHint(scene);
     },
+  });
+}
+
+export function serveSnikuAtBar(scene) {
+  const quest = getTavernQuest(scene.farm);
+  if (quest.status !== 'serving' || scene.snikuBeingServed) return;
+  scene.snikuBeingServed = scene.bartender.serve(scene.tavernVisitors.Sniku, () => {
+    scene.snikuBeingServed = false;
+    quest.status = 'ready'; addSnikuBeer(scene);
+    playSound(scene.farm, 'clink'); updateTavernQuestHint(scene);
   });
 }
 

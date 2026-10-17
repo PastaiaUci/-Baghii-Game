@@ -1,5 +1,9 @@
+import { showDamage } from './combat-feedback.js';
+import { installSaveSystem } from './save-system.js';
 import Phaser from 'phaser';
-import { drawGdolf, getGdolfIdleTexture } from './player-art.js';
+import { canInteract } from './interaction-range.js';
+import { installXpHud, characterName, awardEnemyXp } from './leveling.js';
+import { drawGdolf, updateGdolfAnimation } from './player-art.js';
 import { createLaviniaTexture } from './lavinia-art.js';
 import { joinParty, updateParty, showLevelOneTitle, showLevelComplete, giveVictoryBook, openBook, closeBook } from './completion.js';
 import { showVictoryDialogue, beginChapterDialogue, useChapterPortal, clickChapterPortal, updateChapterPortal } from './chapter-two.js';
@@ -17,7 +21,7 @@ import { createCouponKeeperTexture } from './coupon-keeper-art.js';
 import { createVillageGoldLayout } from './village-gold.js';
 import { createShop } from './shop.js';
 import { toggleHelmet, createHelmetVisual, absorbArmorDamage, armorPoints } from './armor.js';
-import { clickPartyTete, deployPartyTete } from './party-storage.js';
+import { deployPartyTete } from './party-storage.js';
 import { toggleGear, movementMultiplier, absorbShieldDamage, createGearVisual } from './gear.js';
 import { createSwordMotion, updateSwordMotion } from './sword-motion.js';
 import { createTestCheckpointNpc, clickTestCheckpoint } from './test-checkpoint.js';
@@ -147,9 +151,9 @@ class FarmScene extends Phaser.Scene {
     this.playerCoupon.setScale(1.2);
     this.playerCoupon.setVisible(false);
 
-    this.nameLabel = this.add.text(this.player.x, this.player.y - 22, 'Gdolf, The Betrayer', {
+    this.nameLabel = this.add.text(this.player.x, this.player.y - 27, characterName(this), {
       fontFamily: 'Arial',
-      fontSize: '12px',
+      fontSize: '9px',
       color: '#f5f5f5',
       stroke: '#1f1f1f',
       strokeThickness: 3,
@@ -178,6 +182,7 @@ class FarmScene extends Phaser.Scene {
     installPauseMenu(this);
     this.refreshStatsUi = () => { updatePlayerHealth(this); this.updatePlayerHeadHealth(); };
     installStatsPanel(this);
+    installXpHud(this);
     createVillageCombat(this);
 
     this.input.on('pointerdown', (pointer) => {
@@ -204,7 +209,6 @@ class FarmScene extends Phaser.Scene {
       if (clickMedallion(this, worldPoint)) return;
       if (clickEmperorLuis(this, worldPoint)) return;
       if (clickTestCheckpoint(this, worldPoint)) return;
-      if (clickPartyTete(this, worldPoint)) return;
       if (clickDicePlayer(this, worldPoint)) return;
       if (clickTavernDoor(this, worldPoint)) return;
       if (clickChapterPortal(this, worldPoint)) return;
@@ -253,6 +257,7 @@ class FarmScene extends Phaser.Scene {
     this.input.keyboard.on('keydown', (event) => {
       const key = event.key ? event.key.toLowerCase() : '';
       if (this.tavernActive || (key === 'e' && event.repeat)) return;
+      if (!this.introOverlay.classList.contains('hidden')) return;
       if (this.gameOver) return;
       if (this.npcDialogueOpen || this.chapterDialogueOpen || this.levelTransitioning) return;
       if (this.bookOpen) {
@@ -289,7 +294,7 @@ class FarmScene extends Phaser.Scene {
           { npc: this.testCheckpointNpc, talk: () => clickTestCheckpoint(this, this.testCheckpointNpc) },
           ...(this.dicePlayers || []).map(({ sprite }) => ({ npc: sprite, talk: () => clickDicePlayer(this, sprite) })),
           { npc: this.shopLocation, talk: () => { this.openNearbyShop(); return true; } },
-        ].filter(({ npc }) => npc?.visible && Math.hypot(this.player.x - npc.x, this.player.y - npc.y) < 75)
+        ].filter(({ npc }) => npc?.visible && canInteract(this, npc))
           .sort((a, b) => Math.hypot(this.player.x - a.npc.x, this.player.y - a.npc.y) - Math.hypot(this.player.x - b.npc.x, this.player.y - b.npc.y));
         if (candidates.some(({ talk }) => talk())) return;
         this.toggleInventory();
@@ -313,6 +318,7 @@ class FarmScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
     this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
     this.cameras.main.setZoom(1.4);
+    installSaveSystem(this);
   }
 
   createWorldGround() {
@@ -443,6 +449,7 @@ class FarmScene extends Phaser.Scene {
     });
 
     this.couponKeeper.on('pointerdown', () => {
+      if (!canInteract(this, this.couponKeeper)) return;
       if (!this.introOverlay.classList.contains('hidden') || this.gameOver || this.npcDialogueOpen ||
           this.chapterDialogueOpen || this.levelTransitioning || this.bookOpen ||
           !this.inventoryUi.classList.contains('hidden')) return;
@@ -452,6 +459,7 @@ class FarmScene extends Phaser.Scene {
   }
 
   buyCoupon() {
+    if (!canInteract(this, this.couponKeeper)) return;
     if (this.couponDialogueStep) return;
     if (!this.nearbyCouponKeeper) {
       return;
@@ -506,8 +514,7 @@ class FarmScene extends Phaser.Scene {
       </div>
     `;
 
-    const startButton = overlay.querySelector('#start-game-btn');
-    startButton.addEventListener('click', () => {
+    this.startNewStory = () => {
       if (overlay.classList.contains('hidden')) return;
       const camera = this.cameras.main;
       const originalZoom = camera.zoom;
@@ -526,7 +533,7 @@ class FarmScene extends Phaser.Scene {
           repeat: 0,
         });
       });
-    });
+    };
 
     document.body.appendChild(overlay);
     this.introOverlay = overlay;
@@ -844,19 +851,7 @@ class FarmScene extends Phaser.Scene {
     const idleGraphics = buildFrame(0, 0, 0, 0);
     idleGraphics.generateTexture('player', 32, 40);
     idleGraphics.destroy();
-    const breathingGraphics = drawGdolf(this, 0, 0, 0, 0, true);
-    breathingGraphics.generateTexture('player-idle-breath', 32, 40);
-    breathingGraphics.destroy();
-
-    const walkOneGraphics = buildFrame(1, -1, 1, -1);
-    walkOneGraphics.generateTexture('player-walk-1', 32, 40);
-    walkOneGraphics.destroy();
-
-    const walkTwoGraphics = buildFrame(-1, 1, -1, 1);
-    walkTwoGraphics.generateTexture('player-walk-2', 32, 40);
-    walkTwoGraphics.destroy();
-
-    this.playerWalkFrames = ['player', 'player-walk-1', 'player-walk-2'];
+    this.playerWalkFrames = ['player'];
   }
 
   createSwordTexture() {
@@ -1204,24 +1199,7 @@ class FarmScene extends Phaser.Scene {
     villager.npc.setTint(0xff7d7d);
     this.time.delayedCall(120, () => villager.npc.clearTint());
 
-    const hitText = this.add.text(villager.npc.x, villager.npc.y - 26, 'HIT!', {
-      fontFamily: 'Arial',
-      fontSize: '12px',
-      color: '#ffd166',
-      stroke: '#1f1f1f',
-      strokeThickness: 4,
-      align: 'center',
-    });
-    hitText.setOrigin(0.5, 0.5);
-    hitText.setDepth(50);
-    this.tweens.add({
-      targets: hitText,
-      y: villager.npc.y - 48,
-      alpha: 0,
-      duration: 400,
-      ease: 'Sine.easeOut',
-      onComplete: () => hitText.destroy(),
-    });
+    showDamage(this, villager.npc, amount);
 
     if (villager.health <= 0) {
       this.killVillager(villager);
@@ -1233,6 +1211,8 @@ class FarmScene extends Phaser.Scene {
   }
 
   killVillager(villager) {
+    if (!villager.alive) return;
+    awardEnemyXp(this, villager, 15);
     villager.alive = false;
     villager.npc.disableBody(true, true);
     villager.weapon.setVisible(false);
@@ -1463,6 +1443,7 @@ class FarmScene extends Phaser.Scene {
     }
 
     this.bossHealth = Math.max(0, Math.round((this.bossHealth - amount) * 100) / 100);
+    showDamage(this, this.boss, amount);
     this.boss.setTint(0xff7d7d);
     this.time.delayedCall(120, () => this.boss?.active && this.boss.clearTint());
     updateBossHealth(this);
@@ -1488,6 +1469,7 @@ class FarmScene extends Phaser.Scene {
     this.bossFightActive = false;
     this.bossDefeated = true;
     grantTeteVictoryPoints(this);
+    awardEnemyXp(this, this.boss, 100);
     this.bossRoomActive = true;
     this.bossTransitioning = false;
     this.gameOver = false;
@@ -1509,7 +1491,9 @@ class FarmScene extends Phaser.Scene {
     }
     playSound(this, 'hit');
 
+    const previousHealth = this.playerHealth;
     this.playerHealth = Math.max(0, this.playerHealth - absorbArmorDamage(this, absorbShieldDamage(this, amount)));
+    showDamage(this, this.player, previousHealth - this.playerHealth, '#ffb0a0');
     updatePlayerHealth(this);
     this.updatePlayerHeadHealth();
     this.player.setTint(0xff7d7d);
@@ -1542,6 +1526,7 @@ class FarmScene extends Phaser.Scene {
   }
 
   update() {
+    if (this.introOverlay && !this.introOverlay.classList.contains('hidden')) { this.player?.setVelocity(0, 0); return; }
     updateMetinStones(this);
     updateRevivalBeerDrops(this);
     if (this.npcDialogueOpen) return;
@@ -1599,17 +1584,10 @@ class FarmScene extends Phaser.Scene {
     if (moveX !== 0 || moveY !== 0) {
       const length = Math.hypot(moveX, moveY) || 1;
       this.player.setVelocity((moveX / length) * speed, (moveY / length) * speed);
-      const walkFrameIndex = Math.floor((this.time.now / 140) % this.player.walkFrames.length);
-      const nextTexture = this.player.walkFrames[walkFrameIndex];
-      if (this.player.texture.key !== nextTexture) {
-        this.player.setTexture(nextTexture);
-      }
+      updateGdolfAnimation(this, true);
     } else {
       this.player.setVelocity(0, 0);
-      const idleTexture = getGdolfIdleTexture(this.time.now);
-      if (this.player.texture.key !== idleTexture) {
-        this.player.setTexture(idleTexture);
-      }
+      updateGdolfAnimation(this, false);
     }
 
     updateSwordMotion(this);
@@ -1653,7 +1631,8 @@ class FarmScene extends Phaser.Scene {
 
     if (this.nameLabel) {
       this.nameLabel.x = this.player.x;
-      this.nameLabel.y = this.player.y - 22;
+      this.nameLabel.y = this.player.y - 27;
+      this.nameLabel.setText(characterName(this));
     }
     this.updatePlayerHeadHealth();
 

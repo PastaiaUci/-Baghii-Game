@@ -1,8 +1,10 @@
 import { syncCharacterStats } from './character-stats.js';
+import { showCombatText } from './combat-feedback.js';
+import { getGdolfPose } from './player-art.js';
 
 export const EXTRA_GEAR = {
   'wind-boots': { type: 'wind-boots', slot: 'boots', name: 'Papuci de Vânt', price: 350, stat: '+25% viteză de mișcare', description: 'Mai ușor pe drum, mai rapid în luptă. Bonusul se combină cu Iureș.', details: ['Se echipează în slotul de cizme.', 'Bonus activ doar cât sunt echipați.'], icon: 'boots-icon' },
-  shield: { type: 'shield', slot: 'shield', name: 'Scut de fier', price: 300, stat: '50 puncte de rezistență', description: 'Ține apăsat click dreapta pentru a bloca damage. La 0 rezistență, scutul se sparge și dispare.', details: ['Absoarbe până la 50 damage în total.', 'Damage-ul care depășește rezistența trece mai departe.', 'Se echipează în slotul de scut.'], icon: 'shield-icon' },
+  shield: { type: 'shield', slot: 'shield', name: 'Scut de fier', price: 180, stat: '50 puncte de rezistență', description: 'Ține apăsat click dreapta pentru a bloca damage. La 0 rezistență, scutul se sparge și dispare.', details: ['Absoarbe până la 50 damage în total.', 'Damage-ul care depășește rezistența trece mai departe.', 'Se echipează în slotul de scut.'], icon: 'shield-icon' },
 };
 export function isGearInStock(scene, type) {
   if (!EXTRA_GEAR[type] || scene.currentLevel !== 2) return false;
@@ -55,6 +57,7 @@ export function absorbShieldDamage(scene, damage, blockingOverride) {
   const shield = scene.equippedShield;
   const blocked = Math.min(damage, shield.durability);
   shield.durability -= blocked;
+  if (blocked > 0) showCombatText(scene, scene.player, `Blocat · ${Math.round(blocked * 100) / 100}`, '#c8e5ff');
   if (shield.durability <= 0) {
     scene.equippedShield = null;
     scene.inventory = scene.inventory.map((item, index) => item === shield ? { type: 'empty', key: String(index + 1), label: `Slot ${index + 1}` } : item);
@@ -63,22 +66,27 @@ export function absorbShieldDamage(scene, damage, blockingOverride) {
   }
   return damage - blocked;
 }
-export function drawExtraGear(ctx, scene, x, y, scale = 1) {
+export function drawExtraGear(ctx, scene, x, y, scale = 1, pose = {}) {
   ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale);
+  const bob = pose.bob || 0, step = pose.step || 0, leftLift = pose.leftLift || 0, rightLift = pose.rightLift || 0;
   if (scene.equippedArmor?.type === 'winter-coat') {
+    ctx.save(); ctx.translate(0, bob);
     ctx.fillStyle = '#594779'; ctx.fillRect(5, 21, 23, 11);
     ctx.fillStyle = '#a18bb3'; ctx.fillRect(7, 22, 4, 8);
     ctx.fillStyle = '#e6e0cb'; ctx.fillRect(8, 20, 17, 3); ctx.fillRect(6, 30, 21, 2);
     ctx.fillStyle = '#dab96e'; ctx.fillRect(16, 23, 1, 7);
+    ctx.restore();
   }
   if (scene.equippedBoots) {
-    ctx.fillStyle = '#578e8e'; ctx.fillRect(8, 34, 8, 5); ctx.fillRect(17, 34, 8, 5);
-    ctx.fillStyle = '#c5e8cf'; ctx.fillRect(9, 34, 5, 1); ctx.fillRect(18, 34, 5, 1);
+    ctx.fillStyle = '#578e8e'; ctx.fillRect(8 + step, 34 - leftLift, 8, 5); ctx.fillRect(17 - step, 34 - rightLift, 8, 5);
+    ctx.fillStyle = '#c5e8cf'; ctx.fillRect(9 + step, 34 - leftLift, 5, 1); ctx.fillRect(18 - step, 34 - rightLift, 5, 1);
   }
   if (scene.equippedShield) {
+    ctx.save(); ctx.translate(0, bob);
     ctx.fillStyle = '#485666'; ctx.beginPath(); ctx.moveTo(1, 20); ctx.lineTo(12, 20); ctx.lineTo(11, 32); ctx.lineTo(6, 37); ctx.lineTo(2, 32); ctx.closePath(); ctx.fill();
     ctx.strokeStyle = '#c3a867'; ctx.lineWidth = 1; ctx.stroke();
     ctx.fillStyle = '#a5b6c4'; ctx.fillRect(5, 22, 2, 10);
+    ctx.restore();
   }
   ctx.restore();
 }
@@ -91,7 +99,7 @@ export function createGearVisual(scene, owner = scene) {
   const update = () => {
     const player = scene.player;
     const visible = Boolean(player?.visible && !scene.tavernActive);
-    const ctx = texture.getContext(); ctx.clearRect(0, 0, 32, 40); drawExtraGear(ctx, owner, 0, 0); texture.refresh();
+    const ctx = texture.getContext(); ctx.clearRect(0, 0, 32, 40); drawExtraGear(ctx, owner, 0, 0, 1, getGdolfPose(player)); texture.refresh();
     visual.setVisible(visible && Boolean(owner.equippedBoots || owner.equippedShield || owner.equippedArmor));
     if (!player) return;
     const blocking = isShieldBlocking(owner);

@@ -1,5 +1,6 @@
 import { setAudioVolume, unlockAudio } from './audio.js';
 import { shiftVillageTimers } from './tavern-access.js';
+import { installSaveControls } from './save-system.js';
 
 export function shiftMenuTimers(scene, elapsed) {
   const shift = (object, keys) => keys.forEach((key) => { if (object && typeof object[key] === 'number' && object[key] > 0) object[key] += elapsed; });
@@ -9,6 +10,7 @@ export function shiftMenuTimers(scene, elapsed) {
   shift(scene, ['flashlightReadyAt', 'slowVisualUntil', 'nextVillagerDamageAt']);
   scene.npcs?.forEach(({ npc }) => shift(npc, ['slowUntil']));
   scene.metinMobs?.forEach(({ sprite }) => shift(sprite, ['slowUntil']));
+  scene.mobs?.forEach(({ sprite }) => shift(sprite, ['slowUntil']));
   shift(scene.boss, ['slowUntil']);
   if (scene.bossFightActive) {
     shift(scene, ['nextBeerAt', 'nextPuddleAt', 'nextPuddleDamageAt']);
@@ -47,8 +49,8 @@ export function buildControlsHelp(farm) {
     <li>Cupon Keeper cere 100 de bănuți. Sătenii sunt imuni până cumperi cuponul; prima lovitură îi înfurie pe toți.</li>
     <li>Dialogurile se continuă cu butonul „Continuă”. Jocul stă pe loc cât citești.</li>
     <li>Cartea se deschide cu E când este selectată în hotbar sau prin click în inventar. Tastele 1–5 doar selectează obiectul. Schimbă paginile cu butoanele Înapoi/Înainte.</li>
-    ${farm.currentLevel === 2 ? '<li>Pietrele cu aură au niveluri 1–3. Cheamă mobi când le lovești; spargerea lor elimină toți mobii chemați de acea piatră. Lasă gold și au 50% șansă de medalion. Reapar după 25–35 secunde.</li><li>Tete aruncă bere la inamici. La 0/25 HP revine în inventar. Mobii învinși direct au 20% șansă să lase bere: folosește-o din inventar pentru a-i reface 3 HP și a-l putea chema din nou.</li>' : ''}
-    ${farm.tavernQuest?.status === 'completed' || farm.inventory?.some(({ type }) => type === 'health-potion') ? '<li>Poțiunea de viață reface 10 HP. Click pe ea în inventar sau selecteaz-o în hotbar și dă click în joc. La viață maximă nu se consumă.</li>' : ''}
+    ${farm.currentLevel === 2 ? '<li>Pietrele cu aură au niveluri 1–3. Cheamă mobi când le lovești; spargerea lor elimină toți mobii chemați de acea piatră. Lasă gold și au 50% șansă de medalion. Reapar după 25–35 secunde.</li><li>Tete aruncă bere la inamici. La 0/25 HP rămâne în party, la somn. Mobii învinși direct au 20% șansă să lase bere: folosește-o din inventar pentru a-i reface 3 HP și a-l putea chema cu Summon din caseta verde de party.</li>' : ''}
+    ${farm.tavernQuest?.status === 'completed' || farm.inventory?.some(({ type }) => type === 'health-potion') ? '<li>Poțiunea de viață reface 10 HP. Click pe ea în inventar sau selecteaz-o în hotbar și dă click în joc. La viață maximă nu se consumă. Cooldown: 3 secunde între utilizări.</li>' : ''}
     <li>La cârciumă: E lângă ușă sau click pe ușă pentru intrare. E lângă ieșire sau „Înapoi în sat” pentru întoarcere.</li>
     <li>După Tete poți consuma doar unul dintre cele două dropuri. Tete intră în party, iar portalul duce în Nivelul 2.</li>
   </ul>`;
@@ -85,6 +87,17 @@ export function installPauseMenu(farm) {
     overlay.className = 'pause-overlay';
     overlay.innerHTML = `<section class="pause-panel" role="dialog" aria-modal="true" aria-labelledby="pause-title"><header><small>ESC · MENIU</small><h2 id="pause-title">Joc în pauză</h2></header><div class="pause-settings"><label for="game-volume">Volum <output id="volume-value"></output></label><input id="game-volume" type="range" min="0" max="100" step="1"><div class="pause-buttons"><button class="pause-mute">Oprește sunetul</button><button class="pause-info">Info · Controale și abilități</button><button class="pause-resume">Continuă jocul →</button></div></div><div class="pause-help" hidden>${buildControlsHelp(farm)}<button class="pause-back">← Înapoi la meniu</button></div></section>`;
     document.body.appendChild(overlay);
+    const settings = overlay.querySelector('.pause-settings');
+    installSaveControls(settings, farm);
+    const save = document.createElement('button'); save.type = 'button'; save.className = 'save-now'; save.textContent = 'Salvează acum';
+    save.onclick = () => { settings.querySelector('.save-feedback').textContent = farm.saveProgress?.() ? 'Progres salvat.' : 'Salvarea nu este disponibilă. Poți exporta progresul.'; };
+    settings.querySelector('.save-controls').prepend(save);
+    const newGame = document.createElement('button'); newGame.type = 'button'; newGame.className = 'save-new-game'; newGame.textContent = 'Joc nou';
+    newGame.onclick = () => {
+      if (!window.confirm('Ștergi progresul și începi un joc nou?')) return;
+      try { farm.resetSavedGame(); window.location.reload(); } catch { settings.querySelector('.save-feedback').textContent = 'Salvarea nu a putut fi ștearsă.'; }
+    };
+    settings.querySelector('.save-controls').appendChild(newGame);
     const slider = overlay.querySelector('#game-volume'), output = overlay.querySelector('#volume-value');
     const mute = overlay.querySelector('.pause-mute');
     const sync = () => {

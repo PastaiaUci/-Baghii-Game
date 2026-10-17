@@ -16,6 +16,7 @@ export function showDiceDefeat(scene) {
   scene.dialogOkButton.disabled = false;
   scene.dialogOkButton.addEventListener('click', (event) => {
     event.stopImmediatePropagation();
+    scene.resetSavedGame?.();
     window.location.reload();
   }, { capture: true, once: true });
   scene.dialogOkButton.focus();

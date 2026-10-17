@@ -1,3 +1,4 @@
+import { canInteract } from './interaction-range.js';
 import { showNpcDialogue } from './dialogue.js';
 import { openDiceGame } from './dice-game.js';
 
@@ -71,6 +72,7 @@ export function createDicePlayers(scene) {
 export function clickDicePlayer(scene, point) {
   const person = scene.dicePlayers?.find(({ sprite }) => sprite.visible && Math.abs(point.x - sprite.x) < 24 && point.y > sprite.y - 61 && point.y < sprite.y + 25);
   if (!person) return false;
+  if (!canInteract(scene, person.sprite)) return true;
   showNpcDialogue(scene, person.name, person.message);
   openDiceGame(scene, person);
   return true;

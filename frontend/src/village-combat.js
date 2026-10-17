@@ -87,7 +87,7 @@ function chase(scene, v, dx, dy, distance) {
     target = v.path[0] || target;
     dx = target.x - start.x; dy = target.y - start.y; distance = Math.hypot(dx, dy) || 1;
   }
-  const speed = v.roleIndex === 1 ? 65 : 80;
+  const speed = v.roleIndex === 1 ? 85 : 105;
   const slow = scene.time.now < (v.npc.slowUntil || 0) ? 0.5 : 1;
   v.npc.setVelocity(dx / distance * speed * slow, dy / distance * speed * slow);
 }

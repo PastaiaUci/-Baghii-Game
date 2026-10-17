@@ -1,10 +1,10 @@
 // Ambient residents stay separate from the combat villagers and quest counters.
 export const WINTER_RESIDENTS = [
-  { name: 'Ilie', x: 440, y: 660, range: 65, coat: 0x537d88, hat: 0xd6af68 },
-  { name: 'Doina', x: 1000, y: 650, range: 80, coat: 0x954e64, hat: 0xeee0c2 },
-  { name: 'Vasile', x: 820, y: 870, range: 55, vertical: true, coat: 0x6c7353, hat: 0x825c48 },
-  { name: 'Anica', x: 650, y: 1065, range: 65, coat: 0x73648f, hat: 0xd9a473 },
-  { name: 'Petru', x: 1190, y: 580, range: 45, coat: 0x87674e, hat: 0x4e697c },
+  { name: 'Besleaga', x: 440, y: 660, range: 65, coat: 0x537d88, hat: 0xd6af68 },
+  { name: 'Dmantion', x: 1000, y: 650, range: 80, coat: 0x954e64, hat: 0xeee0c2 },
+  { name: 'Diriga Sniper', x: 820, y: 870, range: 55, vertical: true, coat: 0x6c7353, hat: 0x825c48 },
+  { name: 'Rauta', x: 650, y: 1065, range: 65, coat: 0x73648f, hat: 0xd9a473 },
+  { name: 'Tomaso', x: 1190, y: 580, range: 45, coat: 0x87674e, hat: 0x4e697c },
 ];
 
 function drawResident(g, resident, phase) {

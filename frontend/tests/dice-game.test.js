@@ -15,16 +15,25 @@ test('winning returns twice the paid stake and rolls two independent dice per pl
   assert.equal(result.payout, 50);
   assert.equal(s.gold, 125);
   assert.equal(s.updates, 1);
+  assert.equal(s.characterXp, 1);
 });
 test('losing the entire balance leaves zero gold; ties refund the stake', () => {
   const s = scene(25);
   const loss = playDiceRound(s, 25, sequence([0, 0, 0.99, 0.99]));
   assert.equal(loss.outcome, -1);
   assert.equal(s.gold, 0);
+  assert.equal(s.characterXp, undefined);
   assert.match(playDiceRound(s, 1).error, /buzunarele goale/);
   const tied = scene(25);
   assert.equal(playDiceRound(tied, 25, () => 0.5).outcome, 0);
   assert.equal(tied.gold, 25);
+  assert.equal(tied.characterXp, undefined);
+});
+
+test('a win on another map cannot award village gambling XP', () => {
+  const s = scene(); s.currentLevel = 2;
+  playDiceRound(s, 10, sequence([0.99, 0.99, 0, 0]));
+  assert.equal(s.characterXp, undefined);
 });
 test('invalid and unaffordable stakes cannot roll dice or change gold', () => {
   const s = scene(20);

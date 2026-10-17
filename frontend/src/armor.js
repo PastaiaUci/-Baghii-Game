@@ -1,12 +1,14 @@
 import { updatePlayerHealth } from './boss.js';
 import { syncCharacterStats } from './character-stats.js';
+import { getGdolfPose } from './player-art.js';
+export const HELMET_PRICE = 40;
 
 export function buyHelmet(scene) {
   if (scene.shopHelmetSold || scene.equippedHelmet || scene.inventory.some((item) => item.type === 'helmet')) return 'Casca a fost vândută. Nu mai este în stoc.';
-  if (scene.gold < 200) return 'Casca costă 200 gold. Nu ai destui bănuți.';
+  if (scene.gold < HELMET_PRICE) return `Casca costă ${HELMET_PRICE} gold. Nu ai destui bănuți.`;
   const slot = scene.inventory.findIndex((item) => item.type === 'empty');
   if (slot < 0) return 'Inventarul este plin.';
-  scene.gold -= 200;
+  scene.gold -= HELMET_PRICE;
   scene.shopHelmetSold = true;
   scene.inventory[slot] = { type: 'helmet', label: 'Cască de fier · 5 armură · Click pentru echipare', key: String(slot + 1), armorRemaining: 5 };
   scene.updateGoldHud(); scene.updateInventoryList(); scene.updateHotbarState();
@@ -67,7 +69,7 @@ export function createHelmetVisual(scene, owner = scene) {
     const player = scene.player;
     helmet.setVisible(Boolean(owner.equippedHelmet && player?.visible && !scene.tavernActive));
     if (!player) return;
-    const bob = player.texture.key === 'player-idle-breath' ? -1 : player.texture.key === 'player-walk-1' ? 1 : 0;
+    const bob = getGdolfPose(player).bob;
     helmet.setPosition(player.x, player.y + bob).setDepth(player.depth + 0.05);
   };
   scene.events.on('postupdate', update);

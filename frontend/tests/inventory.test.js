@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { swapInventorySlots, getSelectedItem } from '../src/inventory.js';
 import { hasSwordInHand, swordAuraBonus } from '../src/skills.js';
-import { getGdolfIdleTexture } from '../src/player-art.js';
+import { gdolfMotionPose } from '../src/player-art.js';
 
 function setup() {
   let inventoryUpdates = 0, hotbarUpdates = 0;
@@ -54,9 +54,14 @@ test('invalid moves and empty sources do not lose items or allow equipping reser
   assert.equal(hasSwordInHand(s), false);
 });
 
-test('original idle breathing uses a faster cycle', () => {
-  assert.equal(getGdolfIdleTexture(0), 'player');
-  assert.equal(getGdolfIdleTexture(400), 'player-idle-breath');
-  assert.equal(getGdolfIdleTexture(1600), 'player');
-  assert.equal(getGdolfIdleTexture(400 + 800 * Math.PI), 'player-idle-breath');
+test('idle breathing loops continuously with anchored feet and small changes between poses', () => {
+  assert.ok(Math.abs(gdolfMotionPose(0, false).bob - gdolfMotionPose(2400, false).bob) < 0.0001);
+  assert.equal(gdolfMotionPose(1200, false).bob, -0.6);
+  let previous = gdolfMotionPose(0, false).bob;
+  for (let time = 40; time <= 2400; time += 40) {
+    const pose = gdolfMotionPose(time, false);
+    assert.ok(Math.abs(pose.bob - previous) < 0.04);
+    assert.equal(pose.leftLift, 0); assert.equal(pose.rightLift, 0);
+    previous = pose.bob;
+  }
 });

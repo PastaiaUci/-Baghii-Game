@@ -29,6 +29,7 @@ test('a full inventory never loses the ointment; hand-in replaces it with exactl
   assert.equal(chooseHouseChest(s, 2), 'full'); assert.deepEqual(s.winterQuest.opened, []);
   s.inventory[0] = { type: 'empty' }; chooseHouseChest(s, 2); assert.equal(giveWinterCoat(s), true);
   assert.equal(s.inventory[0].type, 'winter-coat'); assert.equal(giveWinterCoat(s), false);
+  assert.equal(s.characterXp, 80);
   const coat = s.inventory[0]; toggleGear(s, coat); assert.equal(s.equippedArmor, coat); assert.equal(s.inventory[0].type, 'empty');
   s.player.x = 800; s.player.y = 360; s.npcDialogueOpen = false;
   attemptMountainPortal(s); assert.equal(s.winterQuest.status, 'ready');

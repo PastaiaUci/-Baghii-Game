@@ -1,4 +1,5 @@
 import { STAT_INFO, derivedStats, initializeStats, spendStatPoint, physicalDamage } from './character-stats.js';
+import { characterName } from './leveling.js';
 import { shiftMenuTimers } from './pause-menu.js';
 import { drawHelmet } from './armor.js';
 import { drawExtraGear } from './gear.js';
@@ -20,6 +21,7 @@ export function installStatsPanel(farm) {
   farm.closeStats = close;
   const render = () => {
     const stats = derivedStats(farm);
+    overlay.querySelector('.stats-avatar strong').textContent = characterName(farm);
     overlay.querySelector('.stats-points').textContent = `Puncte disponibile: ${farm.statPoints}`;
     overlay.querySelector('.stats-rows').innerHTML = Object.entries(STAT_INFO).map(([id, [name, detail]]) => `<div class="stats-row"><div><strong>${name}</strong><small>${detail}</small></div><span title="Bază ${farm.characterStats[id]} · Bonus echipament ${Math.round((stats.values[id] - farm.characterStats[id]) * 100) / 100}">${stats.values[id]}</span><button type="button" data-stat="${id}" aria-label="Crește ${name}" ${farm.statPoints ? '' : 'disabled'}>+</button></div>`).join('');
     overlay.querySelectorAll('[data-stat]').forEach((control) => control.addEventListener('click', () => { spendStatPoint(farm, control.dataset.stat); render(); }));

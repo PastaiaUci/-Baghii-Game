@@ -21,7 +21,7 @@ export function questMapTargets(scene) {
     };
     if (tavern === 'inactive') { visitor('Haralamb', 'available'); visitor('Chinezu', 'available'); }
     if (tavern === 'active') visitor('Sniku', 'objective');
-    if (tavern === 'walking') visitor('Sniku', 'waiting');
+    if (['walking', 'serving'].includes(tavern)) visitor('Sniku', 'waiting');
     if (tavern === 'ready') visitor('Haralamb', 'ready');
     return targets;
   }

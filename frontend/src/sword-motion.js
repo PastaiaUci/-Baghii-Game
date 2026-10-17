@@ -1,4 +1,5 @@
 import { getSelectedItem } from './inventory.js';
+import { getGdolfPose } from './player-art.js';
 
 export function createSwordMotion(scene) {
   scene.swordTrail = scene.add.graphics().setVisible(false);
@@ -16,7 +17,7 @@ export function updateSwordMotion(scene) {
   const target = scene.cameras.main.getWorldPoint(scene.input.activePointer.x, scene.input.activePointer.y);
   const aim = scene.isAttacking ? scene.attackOriginAngle - Math.PI / 2 : Math.atan2(target.y - player.y, target.x - player.x);
   const side = Math.cos(aim) < 0 ? -1 : 1;
-  const bob = player.texture.key === 'player-idle-breath' ? -1 : player.texture.key === 'player-walk-1' ? 1 : 0;
+  const bob = getGdolfPose(player).bob;
   let rotation = side * 0.38;
   let extension = 0;
   let handLift = 0;

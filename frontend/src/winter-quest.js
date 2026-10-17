@@ -1,3 +1,4 @@
+import { grantXp } from './leveling.js';
 import { showNpcDialogue, hideNpcDialogue } from './dialogue.js';
 
 export const MIGAN_DOOR = { x: 420, y: 1035 };
@@ -78,6 +79,7 @@ export function giveWinterCoat(scene) {
   if (slot < 0) return false;
   scene.inventory[slot] = { type: 'winter-coat', label: 'Scurta de Iarnă · Protecție pentru munți · Click pentru echipare', key: String(slot + 1) };
   scene.winterQuest.status = 'coat-owned';
+  grantXp(scene, 80);
   scene.updateInventoryList(); scene.updateHotbarState(); winterHint(scene); return true;
 }
 export function enterMiganHouse(scene) {

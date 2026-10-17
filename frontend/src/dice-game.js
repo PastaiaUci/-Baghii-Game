@@ -1,4 +1,5 @@
 import { showDiceDefeat } from './dice-defeat.js';
+import { grantXp } from './leveling.js';
 
 export function playDiceRound(scene, stake, random = Math.random) {
   if (!Number.isSafeInteger(stake) || stake <= 0) return { error: 'Alege o miză întreagă, mai mare decât zero.' };
@@ -11,6 +12,7 @@ export function playDiceRound(scene, stake, random = Math.random) {
   scene.gold -= stake;
   const payout = outcome > 0 ? stake * 2 : outcome === 0 ? stake : 0;
   scene.gold += payout;
+  if (outcome > 0 && scene.currentLevel !== 2) grantXp(scene, 1);
   scene.updateGoldHud();
   return { player, opponent, outcome, payout, stake };
 }

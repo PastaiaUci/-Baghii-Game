@@ -1,4 +1,5 @@
 import { createPartyBeer, updatePartyBeer } from './party-beer.js';
+import { installPartySleepButton } from './party-storage.js';
 
 export function findPartyPath(start, goal, bounds, obstacles, cell = 20) {
   const cols = Math.floor(bounds.width / cell), rows = Math.floor(bounds.height / cell);
@@ -42,8 +43,12 @@ export function joinParty(scene, sprite) {
   scene.partyCollider = scene.physics.add.collider(sprite, scene.arenaSolids);
   const hud = document.createElement('div');
   hud.className = 'party-hud';
-  hud.innerHTML = '<img src="/assets/Tete.png" alt="Tete"><div><small>PARTY</small><strong>Tete</strong><span>Te urmează</span></div>';
+  hud.tabIndex = 0;
+  hud.setAttribute('role', 'group');
+  hud.setAttribute('aria-label', 'Party Tete: click pentru La somn sau Summon');
+  hud.innerHTML = '<button type="button" class="party-sleep" hidden>La somn</button><button type="button" class="party-portrait" aria-label="Optiuni Tete" aria-expanded="false"><img src="/assets/Tete.png" alt="Tete"></button><div><small>PARTY</small><strong>Tete</strong><span>Te urmează</span><p class="party-danger" role="status" hidden></p><p class="party-feedback" role="status"></p></div>';
   scene.partyHud = hud;
+  installPartySleepButton(scene, hud);
   hud.querySelector('span').textContent = '25/25 HP · Te urmează';
   document.body.appendChild(hud);
   scene.events.once('shutdown', () => hud.remove());
@@ -73,10 +78,10 @@ export function updateParty(scene) {
     } else npc.setVelocity(0, 0);
   }
   npc.setDepth(10 + npc.body.bottom / 100);
-  scene.partyLabel.setPosition(npc.x, npc.y - 49).setText(`Tete · ${scene.partyTeteHealth}/25`);
+  scene.partyLabel.setPosition(npc.x, npc.y - 49).setColor(scene.partyTeteHealth <= 8 ? '#ffad91' : '#bce6cb').setText(`Tete · ${scene.partyTeteHealth}/25${scene.partyTeteHealth <= 8 ? ' !' : ''}`);
   scene.partyHealthBar.clear().setPosition(npc.x - 18, npc.y - 42);
   scene.partyHealthBar.fillStyle(0x25372e).fillRoundedRect(0, 0, 36, 4, 1);
-  scene.partyHealthBar.fillStyle(0x93cba6).fillRect(1, 1, 34 * scene.partyTeteHealth / 25, 2);
+  scene.partyHealthBar.fillStyle(scene.partyTeteHealth <= 8 ? 0xe67b66 : 0x93cba6).fillRect(1, 1, 34 * scene.partyTeteHealth / 25, 2);
   scene.partyShadow.setPosition(npc.x, npc.body.bottom - 3);
   updatePartyBeer(scene);
 }

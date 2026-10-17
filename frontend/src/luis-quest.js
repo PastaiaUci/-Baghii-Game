@@ -1,3 +1,4 @@
+import { grantXp } from './leveling.js';
 import { createMountainPortal } from './mountain-portal.js';
 
 export function startLuisQuest(scene) {
@@ -55,6 +56,7 @@ export function completeLuisQuest(scene) {
   if (scene.inventory[slot].quantity > 3) scene.inventory[slot].quantity -= 3;
   else scene.inventory[slot] = { type: 'empty', label: `Slot ${slot + 1}`, key: String(slot + 1) };
   scene.luisQuest.status = 'completed';
+  grantXp(scene, 100);
   if (scene.inventory[slot].type === 'gold-medallion') scene.inventory[slot].label = `Medalioane de aur ×${scene.inventory[slot].quantity}`;
   scene.updateInventoryList(); scene.updateHotbarState();
   return true;

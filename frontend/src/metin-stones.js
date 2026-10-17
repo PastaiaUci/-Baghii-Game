@@ -3,6 +3,8 @@ import { showNpcDialogue, hideNpcDialogue } from './dialogue.js';
 import { damagePartyTete, dropRevivalBeer } from './party-health.js';
 import { updatePlayerHealth } from './boss.js';
 import { collectLuisMedallion } from './luis-quest.js';
+import { awardEnemyXp } from './leveling.js';
+import { showDamage } from './combat-feedback.js';
 
 export const METIN_LOCATIONS = [
   [260, 900, 1], [600, 1010, 1], [1320, 670, 2], [1040, 760, 2], [550, 740, 1],
@@ -66,7 +68,7 @@ function scatterGold(scene, stone) {
     let x = stone.x + Math.cos(angle) * 43, y = stone.y + Math.sin(angle) * 30;
     if (!isClear(scene, x, y, 8)) { x = stone.x; y = stone.y; }
     const sprite = scene.add.sprite(stone.x, stone.y, 'gold-coin').setDepth(25);
-    const pickup = { sprite, value: 5 * stone.level, level: 2, collected: false, flying: true };
+    const pickup = { sprite, value: 5 * stone.level, level: 2, collected: false, flying: true, savePosition: { x, y } };
     scene.goldPickups.push(pickup);
     scene.tweens.add({ targets: sprite, x, y: y - 23, duration: 240, ease: 'Cubic.easeOut', onComplete: () => {
       scene.tweens.add({ targets: sprite, y, duration: 230, ease: 'Bounce.easeOut', onComplete: () => { pickup.flying = false; } });
@@ -74,7 +76,7 @@ function scatterGold(scene, stone) {
   }
 }
 
-function dropMedallion(scene, stone) {
+export function dropMedallion(scene, stone) {
   scene.luisMedallions ||= [];
   const sprite = scene.add.image(stone.x, stone.y - 7, 'bobita-medallion').setDisplaySize(26, 28).setDepth(24);
   const glow = scene.add.ellipse(stone.x, stone.y + 8, 36, 13, 0xffdc6b, 0.3).setDepth(1);
@@ -83,6 +85,8 @@ function dropMedallion(scene, stone) {
 }
 
 export function damageMetinStone(scene, stone, amount, random = Math.random) {
+  if (stone.broken || amount <= 0) return;
+  showDamage(scene, { x: stone.x, y: stone.y }, Math.min(amount, stone.health));
   const result = hitStoneState(stone, amount, random);
   if (!result.broken && !stone.broken) {
     for (let wave = 0; wave < result.waves; wave += 1) {
@@ -92,6 +96,7 @@ export function damageMetinStone(scene, stone, amount, random = Math.random) {
     scene.time.delayedCall(90, () => { if (!stone.broken) stone.sprite.clearTint(); });
   }
   if (!result.broken) return;
+  awardEnemyXp(scene, stone, 20 * (stone.level || 1));
   stone.sprite.setVisible(false); stone.label.setVisible(false); stone.aura.clear(); stone.body.body.enable = false;
   stone.respawn = 25000 + (stone.level - 1) * 5000;
   scene.metinMobs.filter((mob) => mob.alive && mob.stone === stone).forEach(removeMob);
@@ -107,8 +112,10 @@ export function damageMetinStone(scene, stone, amount, random = Math.random) {
 
 export function damageMetinMob(scene, mob, damage) {
   if (!mob?.alive) return;
+  showDamage(scene, mob.sprite, Math.min(damage, mob.health));
   mob.health = Math.max(0, Math.round((mob.health - damage) * 100) / 100);
   if (!mob.health) {
+    awardEnemyXp(scene, mob, (mob.kind === 'yeti' ? 18 : 12) * (mob.stone?.level || 1));
     if (Math.random() < 0.2) dropRevivalBeer(scene, mob.sprite.x, mob.sprite.y);
     removeMob(mob); return;
   }
@@ -161,7 +168,7 @@ export function updateMetinStones(scene) {
     if (stone.broken) {
       stone.respawn -= dt;
       if (stone.respawn <= 0 && Math.hypot(scene.player.x - stone.x, scene.player.y - stone.y) > 85 && (!scene.partyTete?.active || Math.hypot(scene.partyTete.x - stone.x, scene.partyTete.y - stone.y) > 60)) {
-        stone.broken = false; stone.health = stone.maxHealth; stone.waves = stone.spawned = 0;
+        stone.broken = false; stone.xpAwarded = false; stone.health = stone.maxHealth; stone.waves = stone.spawned = 0;
         stone.sprite.setVisible(true).clearTint(); stone.label.setVisible(true); stone.body.body.enable = true;
       }
       return;
@@ -186,7 +193,7 @@ export function updateMetinStones(scene) {
     const dx = target.x - sprite.x, dy = target.y - sprite.y, distance = Math.hypot(dx, dy);
     mob.cooldown -= dt; mob.warning.clear();
     const slowed = scene.time.now < sprite.slowUntil;
-    const speed = (mob.kind === 'yeti' ? 60 : mob.kind === 'walker' ? 94 : 76) * (1 + (mob.stone.level - 1) * 0.08) * (slowed ? (sprite.slowFactor || 0.5) : 1);
+    const speed = (mob.kind === 'yeti' ? 95 : mob.kind === 'walker' ? 135 : 115) * (1 + (mob.stone.level - 1) * 0.08) * (slowed ? (sprite.slowFactor || 0.5) : 1);
     if (mob.windup > 0) {
       sprite.setVelocity(0, 0); mob.windup -= dt;
       mob.warning.lineStyle(2, 0xf29474, 0.7).strokeEllipse(sprite.x, sprite.y + 14, 55, 27);

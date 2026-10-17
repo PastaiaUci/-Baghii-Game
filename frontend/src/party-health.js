@@ -1,19 +1,14 @@
-import { storePartyTete } from './party-storage.js';
+import { storePartyTete, updatePartyHud } from './party-storage.js';
 import { addConsumable, consumeOne } from './consumables.js';
+import { showDamage } from './combat-feedback.js';
 
 export function damagePartyTete(scene, amount) {
   if (!scene.partyTete?.active || scene.partyTeteSleeping || scene.partyTeteHealth <= 0) return false;
+  showDamage(scene, scene.partyTete, Math.min(amount, scene.partyTeteHealth), '#ffb0a0');
   scene.partyTeteHealth = Math.max(0, scene.partyTeteHealth - amount);
-  if (scene.partyHud) scene.partyHud.querySelector('span').textContent = `${scene.partyTeteHealth}/25 HP · Te urmează`;
+  updatePartyHud(scene);
   if (!scene.partyTeteHealth) {
-    // Reserve an overflow slot if necessary: the companion must never be lost.
-    if (!scene.inventory.some(({ type }) => type === 'empty')) {
-      const index = scene.inventory.length;
-      scene.inventory.push({ type: 'empty', label: `Slot ${index + 1}`, key: String(index + 1) });
-    }
     storePartyTete(scene);
-    const item = scene.inventory.find(({ type }) => type === 'party-tete');
-    item.label = 'Tete · 0/25 HP · Are nevoie de bere pentru a fi înviat';
     scene.partyBeerShots?.forEach(({ sprite }) => sprite.destroy()); scene.partyBeerShots = [];
     scene.updateInventoryList(); scene.updateHotbarState();
   }
@@ -27,7 +22,7 @@ export function consumeRevivalBeer(scene, item) {
   consumeOne(scene, slot, 'revival-beer');
   const companion = scene.inventory.find(({ type }) => type === 'party-tete');
   if (companion) companion.label = `Tete · ${scene.partyTeteHealth}/25 HP · Click pentru a-l chema`;
-  if (scene.partyHud) scene.partyHud.querySelector('span').textContent = `${scene.partyTeteHealth}/25 HP · Te urmează`;
+  updatePartyHud(scene);
   scene.updateInventoryList(); scene.updateHotbarState();
   return true;
 }

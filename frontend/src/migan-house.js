@@ -5,7 +5,7 @@ import { createHelmetVisual, absorbArmorDamage } from './armor.js';
 import { createGearVisual, absorbShieldDamage } from './gear.js';
 import { derivedStats, physicalDamage } from './character-stats.js';
 import { createSwordMotion, updateSwordMotion } from './sword-motion.js';
-import { getGdolfIdleTexture } from './player-art.js';
+import { updateGdolfAnimation } from './player-art.js';
 import { getSelectedItem } from './inventory.js';
 import { applyHealthPotion } from './health-potion.js';
 import { updatePlayerHealth } from './boss.js';
@@ -15,6 +15,13 @@ import { closeBook } from './completion.js';
 import { updatePartyCombat } from './party-combat.js';
 import { damagePartyTete, consumeRevivalBeer } from './party-health.js';
 import { deployPartyTete } from './party-storage.js';
+import { awardEnemyXp, createInteriorName } from './leveling.js';
+import { showCombatText, showDamage } from './combat-feedback.js';
+import { potionCooldownRemaining } from './consumable-cooldown.js';
+import { createHouseSkills, activateHouseSkill, updateHouseSkills } from './house-skills.js';
+import { transferSkillState } from './skill-state.js';
+import { swordAuraBonus } from './skills.js';
+import { createPartyBeer, updatePartyBeer } from './party-beer.js';
 
 export class MiganHouseScene extends Phaser.Scene {
   constructor() { super('MiganHouseScene'); }
@@ -29,6 +36,7 @@ export class MiganHouseScene extends Phaser.Scene {
     this.drawRoom();
     this.player = this.physics.add.sprite(480, 520, 'player').setCollideWorldBounds(true);
     this.player.body.setSize(16, 10).setOffset(8, 28);
+    createInteriorName(this);
     this.physics.add.collider(this.player, this.solids);
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     this.playerWeapon = this.add.sprite(0, 0, 'sword').setOrigin(0.5, 46 / 56).setScale(0.78).setVisible(false);
@@ -37,8 +45,8 @@ export class MiganHouseScene extends Phaser.Scene {
     this.keys = this.input.keyboard.addKeys('W,A,S,D'); this.input.mouse.disableContextMenu();
     this.mobGroup = this.physics.add.group(); this.mobs = []; this.gas = []; this.poison = 0; this.poisonTick = 1000;
     this.physics.add.collider(this.mobGroup, this.solids); this.physics.add.collider(this.mobGroup, this.mobGroup);
-    this.createDialogue(); this.createChests(); this.createCompanion(); createTavernMinimap(this);
-    this.hiddenHud = [...document.querySelectorAll('.quest-hud, .skillbar, .party-hud')].map((node) => ({ node, visibility: node.style.visibility }));
+    this.createDialogue(); this.createChests(); this.createCompanion(); createHouseSkills(this); createTavernMinimap(this);
+    this.hiddenHud = [...document.querySelectorAll('.quest-hud')].map((node) => ({ node, visibility: node.style.visibility }));
     this.hiddenHud.forEach(({ node }) => { node.style.visibility = 'hidden'; });
     farm.minimap.style.visibility = 'hidden';
     this.notice = document.createElement('div'); this.notice.className = 'migan-house-hud';
@@ -47,11 +55,12 @@ export class MiganHouseScene extends Phaser.Scene {
     this.input.on('pointerdown', (pointer) => {
       if (pointer.rightButtonDown() || this.blocked()) return;
       const point = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-      if (this.mobs.some((mob) => mob.alive && Math.hypot(point.x - mob.sprite.x, point.y - mob.sprite.y) < 28)) { this.attack(point); return; }
+      if (getSelectedItem(farm)?.type === 'sword' && this.mobs.some((mob) => mob.alive && Math.hypot(point.x - mob.sprite.x, point.y - mob.sprite.y) < 28)) { this.attack(point); return; }
       if (Math.abs(point.x - 200) < 30 && Math.abs(point.y - 270) < 45) { if (Math.hypot(this.player.x - 200, this.player.y - 280) < 100) this.talk(); return; }
       const chest = this.chests.find((chest) => Math.hypot(point.x - chest.x, point.y - chest.y) < 30);
       if (chest) { if (Math.hypot(this.player.x - chest.x, this.player.y - chest.y) < 80) this.openChest(chest); return; }
       if (getSelectedItem(farm)?.type === 'health-potion') { this.usePotion(Number(farm.selectedWeapon.slice(5)) - 1); return; }
+      if (getSelectedItem(farm)?.type === 'flashlight') { activateHouseSkill(this, 'flashlight'); return; }
       if (getSelectedItem(farm)?.type === 'party-tete') { deployPartyTete(farm, getSelectedItem(farm)); return; }
       if (getSelectedItem(farm)?.type === 'revival-beer') { consumeRevivalBeer(farm, getSelectedItem(farm)); return; }
       this.attack(point);
@@ -60,6 +69,7 @@ export class MiganHouseScene extends Phaser.Scene {
       if (farm.bookOpen) { if (event.key === 'Escape') closeBook(farm); return; }
       if (event.repeat || this.npcDialogueOpen || this.dead || farm.menuOpen || farm.statsOpen || farm.bookOpen) return;
       const key = event.key.toLowerCase();
+      if (['q', 'f', 'r'].includes(key)) { activateHouseSkill(this, key); return; }
       if (/^[1-5]$/.test(key)) { farm.selectedWeapon = `slot-${key}`; farm.updateHotbarState(); }
       if (key === 'i') farm.toggleInventory();
       if (key !== 'e') return;
@@ -72,7 +82,9 @@ export class MiganHouseScene extends Phaser.Scene {
     this.events.once('shutdown', () => {
       this.dialogBox.remove(); this.notice.remove(); this.hiddenHud.forEach(({ node, visibility }) => { node.style.visibility = visibility; });
       farm.minimap.style.visibility = ''; farm.houseActive = farm.tavernActive = false; farm.activeHouse = null;
-      farm.toggleInventory(false); shiftMenuTimers(farm, farm.game.loop.now - this.startedAt);
+      const elapsed = farm.game.loop.now - this.startedAt;
+      farm.toggleInventory(false); shiftMenuTimers(farm, elapsed);
+      transferSkillState(this, farm, this.time.now, farm.time.now + elapsed);
     });
   }
   blocked() { return this.npcDialogueOpen || this.dead || this.leaving || this.farm.bookOpen || this.farm.menuOpen || this.farm.statsOpen || !this.farm.inventoryUi.classList.contains('hidden'); }
@@ -156,32 +168,41 @@ export class MiganHouseScene extends Phaser.Scene {
     const sprite = this.physics.add.sprite(x, y, key).setCollideWorldBounds(true); sprite.body.setSize(16, 10).setOffset(8, 28); this.mobGroup.add(sprite);
     const label = this.add.text(x, y - 27, 'Bandit · 5 HP', { fontSize: '9px', color: '#ffdcb3', stroke: '#222632', strokeThickness: 2 }).setOrigin(0.5).setDepth(30);
     const shout = this.add.text(x, y - 43, 'Fierul tău e al nostru!', { fontSize: '9px', color: '#e6c984', stroke: '#222632', strokeThickness: 2 }).setOrigin(0.5).setDepth(30);
-    this.mobs.push({ sprite, label, shout, key, hp: 5, cooldown: 900, windup: 0, warning: this.add.graphics().setDepth(2), alive: true });
+    const mob = { sprite, label, shout, key, hp: 5, cooldown: 900, windup: 0, warning: this.add.graphics().setDepth(2), alive: true };
+    sprite.houseMob = mob; this.mobs.push(mob);
   }
   createCompanion() {
     this.currentLevel = 2; this.inventoryUi = this.farm.inventoryUi;
     this.level2Solids = this.solids; this.companionEnemies = this.mobs;
-    for (const key of ['partyTeteHealth', 'partyTeteSleeping']) Object.defineProperty(this, key, { get: () => this.farm[key] });
+    this.partyBeerShots = []; this.partyBeerCooldown = 0;
+    for (const key of ['partyTeteHealth', 'partyTeteSleeping']) Object.defineProperty(this, key, { configurable: true, get: () => this.farm[key] });
     if (!this.farm.partyTete) return;
     this.partyTete = this.physics.add.sprite(435, 520, this.farm.partyTete.texture.key).setScale(0.9).setCollideWorldBounds(true);
     this.partyTete.body.setSize(28, 14).setOffset(22, 56);
+    createPartyBeer(this);
     this.physics.add.collider(this.partyTete, this.solids);
     this.companionLabel = this.add.text(435, 477, '', { fontSize: '10px', color: '#bce6cb', stroke: '#17231f', strokeThickness: 3 }).setOrigin(0.5).setDepth(30);
-    this.damageCompanionTarget = (mob, amount) => { mob.hp = Math.max(0, mob.hp - amount); if (!mob.hp) this.killMob(mob); };
+    this.damageCompanionTarget = (mob, amount) => this.damageIndoorMob(mob, amount);
   }
   updateCompanion() {
     const tete = this.partyTete;
     if (!tete) return;
     if (this.partyTeteSleeping || this.partyTeteHealth <= 0) {
-      tete.disableBody(true, true); this.companionLabel.setVisible(false); updatePartyCombat(this); return;
+      tete.disableBody(true, true); this.companionLabel.setVisible(false); this.partyBurp?.setVisible(false); updatePartyCombat(this); return;
     }
     if (!tete.active) tete.enableBody(true, this.player.x - 40, this.player.y, true, true);
     const dx = this.player.x - tete.x, dy = this.player.y - tete.y, distance = Math.hypot(dx, dy);
     tete.setVelocity(distance > 55 ? dx / distance * 145 : 0, distance > 55 ? dy / distance * 145 : 0).setDepth(10 + (tete.y + 28) / 100).setFlipX(dx < 0);
-    this.companionLabel.setVisible(true).setPosition(tete.x, tete.y - 43).setText(`Tete · ${this.partyTeteHealth}/25 HP`);
-    updatePartyCombat(this);
+    this.companionLabel.setVisible(true).setPosition(tete.x, tete.y - 43).setColor(this.partyTeteHealth <= 8 ? '#ffad91' : '#bce6cb').setText(`Tete · ${this.partyTeteHealth}/25 HP${this.partyTeteHealth <= 8 ? ' !' : ''}`);
+    updatePartyBeer(this); updatePartyCombat(this);
   }
   killMob(mob) { mob.alive = false; mob.sprite.destroy(); mob.label.destroy(); mob.shout.destroy(); mob.warning.destroy(); }
+  damageIndoorMob(mob, amount) {
+    if (!mob?.alive || amount <= 0) return;
+    showDamage(this, mob.sprite, Math.min(amount, mob.hp));
+    mob.hp = Math.max(0, Math.round((mob.hp - amount) * 100) / 100);
+    if (!mob.hp) { awardEnemyXp(this, mob, 15); this.killMob(mob); }
+  }
   attack(point) {
     if (getSelectedItem(this.farm)?.type !== 'sword' || this.isAttacking) return;
     this.attackVariant = ((this.attackVariant ?? -1) + 1) % 3; this.attackSwingDirection = this.attackVariant === 1 ? -1 : 1;
@@ -191,20 +212,23 @@ export class MiganHouseScene extends Phaser.Scene {
     this.mobs.filter(({ alive }) => alive).forEach((mob) => {
       const ex = mob.sprite.x - this.player.x, ey = mob.sprite.y - this.player.y;
       if (Math.hypot(ex, ey) < 62 && (ex * dx + ey * dy) / length > -8) {
-        mob.hp = Math.round((mob.hp - physicalDamage(this.farm, 1)) * 100) / 100;
-        if (mob.hp <= 0) this.killMob(mob);
+        this.damageIndoorMob(mob, physicalDamage(this.farm, 1) + swordAuraBonus(this, 'villager'));
       }
     });
   }
   usePotion(slot) {
     if (this.npcDialogueOpen || this.dead || this.farm.menuOpen || this.farm.statsOpen) return false;
-    if (!applyHealthPotion(this.farm, slot)) return false;
+    if (potionCooldownRemaining(this.farm)) { showCombatText(this, this.player, `Poțiune · ${Math.ceil(potionCooldownRemaining(this.farm) / 1000)}s`, '#b7cce1'); return false; }
+    const restored = applyHealthPotion(this.farm, slot);
+    if (!restored) return false;
+    showCombatText(this, this.player, `+${restored} HP`, '#bef2b0');
     this.farm.updateInventoryList(); this.farm.updateHotbarState(); updatePlayerHealth(this.farm); return true;
   }
   damage(amount, poison = false) {
     if (this.dead) return;
     const farm = this.farm;
     const remaining = poison ? amount : absorbArmorDamage(farm, absorbShieldDamage(farm, amount, this.input.activePointer.rightButtonDown()));
+    showDamage(this, this.player, Math.min(remaining, farm.playerHealth), poison ? '#c4df8a' : '#ffb0a0');
     farm.playerHealth = Math.max(0, farm.playerHealth - remaining); updatePlayerHealth(farm);
     if (!farm.playerHealth) {
       this.dead = true; this.mobs.filter(({ alive }) => alive).forEach((mob) => this.killMob(mob));
@@ -221,8 +245,10 @@ export class MiganHouseScene extends Phaser.Scene {
     if (!this.player || this.blocked()) { this.player?.setVelocity(0, 0); this.partyTete?.setVelocity(0, 0); this.mobs?.filter(({ alive }) => alive).forEach(({ sprite }) => sprite.setVelocity(0, 0)); return; }
     const dt = Math.min(this.game.loop.delta, 50);
     const dx = Number(this.keys.D.isDown) - Number(this.keys.A.isDown), dy = Number(this.keys.S.isDown) - Number(this.keys.W.isDown), length = Math.hypot(dx, dy) || 1;
-    this.player.setVelocity(dx / length * derivedStats(this.farm).walkSpeed, dy / length * derivedStats(this.farm).walkSpeed);
-    this.player.setTexture(dx || dy ? this.farm.player.walkFrames[Math.floor(this.time.now / 140) % 3] : getGdolfIdleTexture(this.time.now)).setDepth(10 + (this.player.y + 18) / 100);
+    const speed = updateHouseSkills(this);
+    this.player.setVelocity(dx / length * speed, dy / length * speed);
+    updateGdolfAnimation(this, Boolean(dx || dy));
+    this.player.setDepth(10 + (this.player.y + 18) / 100);
     updateSwordMotion(this); this.updateCompanion();
     this.gas = this.gas.filter((cloud) => {
       cloud.remaining -= dt;
@@ -246,7 +272,10 @@ export class MiganHouseScene extends Phaser.Scene {
         mob.warning.lineStyle(2, 0xe2a36c, 0.7).strokeEllipse(sprite.x, sprite.y + 12, 50, 25);
         if (mob.windup <= 0 && distance < 45) { if (target === this.player) this.damage(2); else damagePartyTete(this.farm, 2); }
       } else if (distance < 40 && mob.cooldown <= 0) { mob.windup = 500; mob.cooldown = 1700; }
-      else if (distance > 30) sprite.setVelocity(x / distance * 65, y / distance * 65);
+      else if (distance > 30) {
+        const speed = 105 * (this.time.now < (sprite.slowUntil || 0) ? (sprite.slowFactor || 0.5) : 1);
+        sprite.setVelocity(x / distance * speed, y / distance * speed);
+      }
       else sprite.setVelocity(0, 0);
       if (!mob.alive || this.dead) return;
       sprite.setDepth(10 + (sprite.y + 18) / 100).setFlipX(x < 0);

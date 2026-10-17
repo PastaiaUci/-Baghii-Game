@@ -1,13 +1,16 @@
+import { canInteract } from './interaction-range.js';
+import { createInteriorName } from './leveling.js';
 import Phaser from 'phaser';
 import { showNpcDialogue, hideNpcDialogue } from './dialogue.js';
 import { playSound } from './audio.js';
 import { shiftVillageTimers } from './tavern-access.js';
-import { getTavernQuest, updateTavernQuestHint, talkToTavernNpc, startSnikuWalk, addSnikuBeer } from './tavern-quest.js';
-import { getGdolfIdleTexture } from './player-art.js';
+import { getTavernQuest, updateTavernQuestHint, talkToTavernNpc, startSnikuWalk, serveSnikuAtBar, addSnikuBeer } from './tavern-quest.js';
+import { updateGdolfAnimation } from './player-art.js';
 import { createHelmetVisual } from './armor.js';
 import { createGearVisual } from './gear.js';
 import { derivedStats } from './character-stats.js';
 import { createTavernMinimap } from './quest-minimap.js';
+import { createTavernBartender } from './tavern-bartender.js';
 
 export class TavernScene extends Phaser.Scene {
   constructor() { super('TavernScene'); }
@@ -20,6 +23,7 @@ export class TavernScene extends Phaser.Scene {
     this.nextStepAt = 0;
     this.wakeWalkPending = false;
     this.snikuWalking = false;
+    this.snikuBeingServed = false;
   }
 
   create() {
@@ -31,6 +35,7 @@ export class TavernScene extends Phaser.Scene {
     this.solids = this.physics.add.staticGroup();
     this.drawRoom();
     this.player = this.physics.add.sprite(480, 500, 'player');
+    createInteriorName(this);
     this.player.body.setSize(16, 10).setOffset(8, 28);
     this.player.setCollideWorldBounds(true);
     this.physics.add.collider(this.player, this.solids);
@@ -38,6 +43,7 @@ export class TavernScene extends Phaser.Scene {
     this.keys = this.input.keyboard.addKeys('W,A,S,D,E,ESC');
     this.createVisitors();
     this.createDialogue();
+    createTavernBartender(this);
     createTavernMinimap(this);
     createHelmetVisual(this, this.farm);
     createGearVisual(this, this.farm);
@@ -50,6 +56,7 @@ export class TavernScene extends Phaser.Scene {
     this.hint.appendChild(this.questHint);
     updateTavernQuestHint(this);
     if (getTavernQuest(this.farm).status === 'walking') startSnikuWalk(this);
+    if (getTavernQuest(this.farm).status === 'serving') serveSnikuAtBar(this);
     this.exitButton = document.createElement('button');
     this.exitButton.className = 'tavern-exit';
     this.exitButton.textContent = 'Înapoi în sat →';
@@ -92,10 +99,6 @@ export class TavernScene extends Phaser.Scene {
     g.fillStyle(0x432e25).fillRect(210, 138, 540, 64);
     g.fillStyle(0xa67b49).fillRect(202, 132, 556, 18);
     this.solid(480, 171, 556, 66);
-    for (let x = 240; x <= 720; x += 56) {
-      g.fillStyle(0x253d2e).fillRoundedRect(x, 112, 8, 20, 2);
-      g.fillStyle(0xbfa36d).fillRect(x + 1, 119, 6, 7);
-    }
     // Table, stools, scattered bottles and warm pools of light.
     for (const x of [318, 422]) {
       g.fillStyle(0x493328).fillEllipse(x, 320, 34, 17);
@@ -117,7 +120,7 @@ export class TavernScene extends Phaser.Scene {
       g.fillStyle(0xe9b865).fillRoundedRect(x - 10, 132, 20, 29, 4);
       g.fillStyle(0xffe5a2).fillRect(x - 3, 136, 6, 20);
     }
-    this.add.text(480, 76, 'CÂRCIUMA BEȚIVILOR', { fontFamily: 'Georgia', fontSize: '22px', color: '#edd6a5' }).setOrigin(0.5);
+    this.add.text(480, 68, 'CÂRCIUMA BEȚIVILOR', { fontFamily: 'Georgia', fontSize: '22px', color: '#edd6a5' }).setOrigin(0.5);
     this.exitLabel = this.add.text(480, 555, 'IEȘIRE · SAT', { fontFamily: 'Arial', fontSize: '12px', color: '#ffdf9f' }).setOrigin(0.5).setDepth(30);
   }
 
@@ -131,8 +134,8 @@ export class TavernScene extends Phaser.Scene {
     this.tavernVisitors = {};
     const quest = getTavernQuest(this.farm);
     specs.forEach(([name, key, x, y, hair, shirt, line], index) => {
-      const awake = name === 'Sniku' && ['walking', 'ready', 'completed'].includes(quest.status);
-      if (awake) { x = quest.position?.x ?? 680; y = quest.position?.y ?? 218; }
+      const awake = name === 'Sniku' && ['walking', 'serving', 'ready', 'completed'].includes(quest.status);
+      if (awake) { x = quest.position?.x ?? 580; y = quest.position?.y ?? 218; }
       if (!this.textures.exists(key)) this.farm.createNpcTexture(key, hair, shirt, 0xe2b490, 0xa98b61);
       this.npcPortraits[name] = this.textures.getBase64(key);
       const sprite = this.add.sprite(0, 0, key).setInteractive({ useHandCursor: true });
@@ -164,7 +167,7 @@ export class TavernScene extends Phaser.Scene {
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
       group.add(marker);
       if (name === 'Sniku' && ['ready', 'completed'].includes(quest.status)) addSnikuBeer(this);
-      const talk = () => { if (!this.npcDialogueOpen && !this.leaving) talkToTavernNpc(this, name, line); };
+      const talk = () => { if (!this.npcDialogueOpen && !this.leaving && canInteract(this, group)) talkToTavernNpc(this, name, line); };
       this.tavernVisitors[name].talk = talk;
       sprite.on('pointerdown', talk); label.on('pointerdown', talk);
       marker.on('pointerdown', talk);
@@ -198,7 +201,7 @@ export class TavernScene extends Phaser.Scene {
     const length = Math.hypot(dx, dy) || 1;
     const speed = derivedStats(this.farm).walkSpeed;
     this.player.setVelocity(dx / length * speed, dy / length * speed);
-    this.player.setTexture(dx || dy ? this.farm.player.walkFrames[Math.floor(this.time.now / 140) % 3] : getGdolfIdleTexture(this.time.now));
+    updateGdolfAnimation(this, Boolean(dx || dy));
     this.player.setDepth(10 + (this.player.y + 18) / 100);
     if ((dx || dy) && this.time.now >= this.nextStepAt) { this.nextStepAt = this.time.now + 290; playSound(this.farm, 'step'); }
     this.exitLabel.setText(Math.hypot(this.player.x - 480, this.player.y - 550) < 80 ? 'E · Înapoi în sat' : 'IEȘIRE · SAT');

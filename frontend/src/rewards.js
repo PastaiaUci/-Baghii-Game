@@ -28,6 +28,7 @@ function usable(scene) {
 }
 
 function nearbyEnemies(scene, radius) {
+  if (scene.mobs) return scene.mobs.filter(({ alive, sprite }) => alive && Math.hypot(sprite.x - scene.player.x, sprite.y - scene.player.y) <= radius).map(({ sprite }) => sprite);
   if (scene.currentLevel === 2) {
     const mobs = (scene.metinMobs || []).filter(({ alive }) => alive).map(({ sprite }) => sprite);
     return mobs.filter((enemy) => Math.hypot(enemy.x - scene.player.x, enemy.y - scene.player.y) <= radius);
@@ -58,7 +59,7 @@ export function createRewardSystem(scene) {
   });
 }
 
-export function grantBossReward(scene, type) {
+export function grantBossReward(scene, type, restoring = false) {
   if (type === 'beer') {
     scene.hasDeathBreath = true;
     const button = document.createElement('button');
@@ -73,11 +74,13 @@ export function grantBossReward(scene, type) {
     scene.deathBreathStatus = button.querySelector('.rush-status');
     scene.setQuest('Death Breath deblocat', 'Apasă R: damage în jurul tău timp de 3 secunde.');
   } else {
+    if (!restoring) {
     const slot = scene.inventory.findIndex((item) => item.type === 'empty');
     scene.inventory[slot] = { type: 'flashlight', label: 'Flashlight · click: slow 50% pentru 4 secunde', key: String(slot + 1) };
     scene.updateInventoryList();
     scene.updateHotbarState();
     scene.selectWeapon(`slot-${slot + 1}`);
+    }
     const button = document.createElement('button');
     button.className = 'rush-skill flashlight-skill';
     button.type = 'button';
@@ -88,16 +91,18 @@ export function grantBossReward(scene, type) {
     mountSkillButton(scene, button);
     scene.flashlightButton = button;
     scene.flashlightStatus = button.querySelector('.rush-status');
-    scene.setQuest('Flashlight primit', `Slot ${slot + 1} · Click: încetinește inamicii din jur cu 50% pentru 4 secunde.`);
+    scene.setQuest('Flashlight primit', 'Click: încetinește inamicii din jur cu 50% pentru 4 secunde.');
   }
 }
 
 export function activateDeathBreath(scene) {
+  if (scene.houseActive && scene.activeHouse) return activateDeathBreath(scene.activeHouse);
   if (!scene.hasDeathBreath || !usable(scene)) return false;
   return scene.deathBreath.activate(scene.time.now);
 }
 
 export function activateFlashlight(scene) {
+  if (scene.houseActive && scene.activeHouse) return activateFlashlight(scene.activeHouse);
   if (!scene.inventory.some(({ type }) => type === 'flashlight') || !usable(scene) || scene.time.now < scene.flashlightReadyAt) return false;
   scene.flashlightReadyAt = scene.time.now + 10000;
   const power = derivedStats(scene).spellPower;
@@ -111,7 +116,8 @@ export function updateRewards(scene) {
   const active = !scene.gameOver && now < scene.deathBreath.until;
   if (active && scene.deathBreath.tick(now)) {
     nearbyEnemies(scene, 130).forEach((enemy) => {
-      if (enemy.metinMob) damageMetinMob(scene, enemy.metinMob, spellDamage(scene, 1));
+      if (enemy.houseMob) scene.damageIndoorMob(enemy.houseMob, spellDamage(scene, 1));
+      else if (enemy.metinMob) damageMetinMob(scene, enemy.metinMob, spellDamage(scene, 1));
       else if (enemy === scene.boss) scene.damageBoss(spellDamage(scene, 1));
       else scene.damageVillager(scene.npcs.find(({ npc }) => npc === enemy), spellDamage(scene, 1));
     });

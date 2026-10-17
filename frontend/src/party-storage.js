@@ -1,23 +1,57 @@
-import { showNpcDialogue, hideNpcDialogue } from './dialogue.js';
-
 export function storePartyTete(scene) {
   if (!scene.partyTete || scene.partyTeteSleeping) return false;
-  const slot = scene.inventory.findIndex(({ type }) => type === 'empty');
-  if (slot < 0) return false;
-  scene.inventory[slot] = { type: 'party-tete', label: 'Tete · La somn · Click pentru a-l chema', key: String(slot + 1) };
   scene.partyTeteSleeping = true;
   scene.partyTete.setVelocity(0, 0).disableBody(true, true);
   scene.partyLabel.setVisible(false); scene.partyShadow.setVisible(false);
   scene.partyHealthBar?.setVisible(false); scene.partyBurp?.setVisible(false);
-  if (scene.partyHud) scene.partyHud.hidden = true;
+  updatePartyHud(scene);
   scene.partyPath = [];
   scene.updateInventoryList(); scene.updateHotbarState();
   return true;
 }
 
+export function installPartySleepButton(scene, hud) {
+  const button = hud.querySelector('.party-sleep');
+  const feedback = hud.querySelector('.party-feedback');
+  const portrait = hud.querySelector('.party-portrait');
+  hud.addEventListener('click', (event) => {
+    event.stopPropagation();
+    button.hidden = !button.hidden;
+    portrait.setAttribute('aria-expanded', String(!button.hidden));
+    feedback.textContent = '';
+    updatePartyHud(scene);
+  });
+  hud.addEventListener('keydown', (event) => {
+    if (event.target !== hud || !['Enter', ' '].includes(event.key)) return;
+    event.preventDefault(); hud.click();
+  });
+  button.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const house = scene.activeHouse;
+    if (scene.npcDialogueOpen || house?.npcDialogueOpen || house?.dead || scene.chapterDialogueOpen || scene.levelTransitioning || scene.gameOver || scene.menuOpen || scene.statsOpen || scene.bookOpen) return;
+    const success = scene.partyTeteSleeping ? deployPartyTete(scene) : storePartyTete(scene);
+    feedback.textContent = success ? '' : scene.partyTeteHealth <= 0 ? 'Tete are nevoie de bere pentru a fi înviat.' : 'Nu este loc lângă tine pentru Summon.';
+    if (success) { button.hidden = true; portrait.setAttribute('aria-expanded', 'false'); }
+  });
+}
+
+export function updatePartyHud(scene) {
+  const hud = scene.partyHud;
+  if (!hud?.querySelector) return;
+  hud.hidden = false;
+  const button = hud.querySelector('.party-sleep');
+  if (button) button.textContent = scene.partyTeteSleeping ? 'Summon' : 'La somn';
+  hud.querySelector('span').textContent = `${scene.partyTeteHealth}/25 HP · ${scene.partyTeteSleeping ? 'La somn' : 'Te urmează'}`;
+  hud.classList?.toggle('party-sleeping', Boolean(scene.partyTeteSleeping));
+  const low = scene.partyTeteHealth > 0 && scene.partyTeteHealth <= 8;
+  hud.classList?.toggle('party-low-health', low);
+  const warning = hud.querySelector('.party-danger');
+  if (warning) { warning.hidden = !low && scene.partyTeteHealth > 0; warning.textContent = scene.partyTeteHealth <= 0 ? 'Tete a căzut · Dă-i bere!' : 'Viață mică · Dă-i bere!'; }
+}
+
 export function deployPartyTete(scene, item) {
   const slot = scene.inventory.indexOf(item);
-  if (slot < 0 || item?.type !== 'party-tete' || !scene.partyTeteSleeping || !scene.partyTete) return false;
+  if ((item && (slot < 0 || item.type !== 'party-tete')) || !scene.partyTeteSleeping || !scene.partyTete) return false;
   if (scene.partyTeteHealth <= 0) {
     const help = scene.inventoryUi?.querySelector('.inventory-help');
     if (help) help.textContent = 'Tete are 0 HP. Folosește o bere din inventar pentru a-l învia, apoi cheamă-l din nou.';
@@ -41,27 +75,11 @@ export function deployPartyTete(scene, item) {
   if (!position) return false;
   scene.partyTete.enableBody(true, position.x, position.y, true, true).setVelocity(0, 0);
   scene.partyTeteSleeping = false;
-  scene.inventory[slot] = { type: 'empty', label: `Slot ${slot + 1}`, key: String(slot + 1) };
+  if (slot >= 0) scene.inventory[slot] = { type: 'empty', label: `Slot ${slot + 1}`, key: String(slot + 1) };
   scene.partyLabel.setVisible(true); scene.partyShadow.setVisible(true);
   scene.partyHealthBar?.setVisible(true);
-  if (scene.partyHud) scene.partyHud.hidden = false;
+  updatePartyHud(scene);
   scene.partyNextPathAt = 0; scene.partyPath = [];
   scene.updateInventoryList(); scene.updateHotbarState();
-  return true;
-}
-
-export function clickPartyTete(scene, point) {
-  const npc = scene.partyTete;
-  if (!npc?.active || !npc.visible || scene.partyTeteSleeping || Math.abs(point.x - npc.x) > 31 || Math.abs(point.y - npc.y) > 38) return false;
-  showNpcDialogue(scene, 'Tete', `Sunt aici, Gdolf! Viață: ${scene.partyTeteHealth}/25. Dacă vrei să mă odihnesc, trimite-mă la somn.`);
-  const actions = document.createElement('div'); actions.className = 'party-actions';
-  const button = document.createElement('button'); button.type = 'button'; button.textContent = 'La somn';
-  const feedback = document.createElement('p'); feedback.setAttribute('role', 'status');
-  actions.append(button, feedback); scene.dialogOkButton.before(actions);
-  button.addEventListener('click', () => {
-    if (!storePartyTete(scene)) { feedback.textContent = 'Inventarul este plin. Am nevoie de un slot liber!'; return; }
-    actions.remove(); hideNpcDialogue(scene);
-  });
-  scene.dialogOkButton.addEventListener('click', () => actions.remove(), { once: true });
   return true;
 }

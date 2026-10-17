@@ -42,6 +42,8 @@ class Element {
   constructor() { this.nodes = new Map(); this.listeners = {}; this.isConnected = true; }
   querySelector(selector) { if (!this.nodes.has(selector)) this.nodes.set(selector, new Element()); return this.nodes.get(selector); }
   addEventListener(name, callback) { this.listeners[name] = callback; }
+  appendChild() {}
+  prepend() {}
   remove() { this.removed = true; }
   focus() {}
 }

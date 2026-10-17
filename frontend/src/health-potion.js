@@ -1,6 +1,8 @@
 import { updatePlayerHealth } from './boss.js';
 import { getSelectedItem } from './inventory.js';
 import { addConsumable, consumeOne } from './consumables.js';
+import { potionCooldownRemaining, startPotionCooldown } from './consumable-cooldown.js';
+import { showCombatText } from './combat-feedback.js';
 
 export function createPotionHeld(scene) {
   const g = scene.make.graphics();
@@ -29,10 +31,12 @@ export function grantHealthPotion(scene) {
 }
 
 export function applyHealthPotion(scene, slot) {
+  if (potionCooldownRemaining(scene)) return 0;
   if (scene.inventory[slot]?.type !== 'health-potion' || scene.playerHealth >= scene.maxPlayerHealth || scene.playerHealth <= 0) return 0;
   const before = scene.playerHealth;
   scene.playerHealth = Math.min(scene.maxPlayerHealth, before + 10);
   consumeOne(scene, slot, 'health-potion');
+  startPotionCooldown(scene);
   return scene.playerHealth - before;
 }
 
@@ -40,6 +44,9 @@ export function useHealthPotion(scene, slot) {
   if (scene.houseActive) return scene.activeHouse?.usePotion(slot) || false;
   if (scene.menuOpen || scene.tavernActive || scene.gameOver || scene.bookOpen || scene.npcDialogueOpen || scene.chapterDialogueOpen || scene.levelTransitioning) return false;
   if (scene.inventory[slot]?.type !== 'health-potion') return false;
+  if (potionCooldownRemaining(scene)) {
+    showCombatText(scene, scene.player, `Poțiune · ${Math.ceil(potionCooldownRemaining(scene) / 1000)}s`, '#b7cce1'); return false;
+  }
   const restored = applyHealthPotion(scene, slot);
   const text = scene.add.text(scene.player.x, scene.player.y - 58, restored ? `+${restored} HP` : 'Viață maximă', {
     fontFamily: 'Arial', fontSize: '12px', color: '#bef2b0', stroke: '#1d2d25', strokeThickness: 3,

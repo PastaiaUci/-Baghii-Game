@@ -1,3 +1,5 @@
+import { shiftSkillTimers } from './skill-state.js';
+
 export function showNpcDialogue(scene, name, message) {
   if (!scene.dialogBox) return;
   if (!scene.npcDialogueOpen) {
@@ -25,6 +27,8 @@ export function hideNpcDialogue(scene) {
   scene.dialogBox.hidden = true;
   if (!scene.npcDialogueOpen) return;
   const elapsed = scene.time.now - scene.npcDialogueStartedAt;
+  shiftSkillTimers(scene, elapsed);
+  scene.mobs?.forEach(({ sprite }) => { if (sprite.slowUntil > 0) sprite.slowUntil += elapsed; });
   // Reading a dialogue must not let the boss's attack timers expire in the background.
   if (scene.bossFightActive) {
     scene.nextBeerAt += elapsed;

@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import { buyGear, toggleGear, movementMultiplier, absorbShieldDamage, isGearInStock } from '../src/gear.js';
 
 const scene = () => ({ currentLevel: 2, gold: 1000, inventory: [{ type: 'empty' }, { type: 'empty' }], input: { activePointer: { rightButtonDown: () => true } }, updateGoldHud() {}, updateInventoryList() {}, updateHotbarState() {} });
-test('map two sells boots for 350 and shield for 300 once; other maps cannot buy', () => {
+test('map two sells boots for 350 and shield for 180 once; other maps cannot buy', () => {
   const s = scene(); buyGear(s, 'wind-boots'); assert.equal(s.gold, 650);
-  buyGear(s, 'shield'); assert.equal(s.gold, 350); assert.equal(s.inventory[1].durability, 50);
-  buyGear(s, 'shield'); assert.equal(s.gold, 350);
+  buyGear(s, 'shield'); assert.equal(s.gold, 470); assert.equal(s.inventory[1].durability, 50);
+  buyGear(s, 'shield'); assert.equal(s.gold, 470);
   const village = scene(); village.currentLevel = 1; buyGear(village, 'shield'); assert.equal(village.gold, 1000);
 });
 test('boots move into equipment and speed bonus disappears on unequip', () => {
@@ -30,7 +30,7 @@ test('full inventory prevents purchase or unequipping and menus cannot block hit
   s.inventory = [{ type: 'book' }, { type: 'coupon' }]; assert.equal(toggleGear(s, shield), false);
   assert.equal(s.equippedShield, shield);
   s.menuOpen = true; assert.equal(absorbShieldDamage(s, 4), 4); assert.equal(shield.durability, 50);
-  buyGear(s, 'wind-boots'); assert.equal(s.gold, 700);
+  buyGear(s, 'wind-boots'); assert.equal(s.gold, 820);
 });
 test('shield is available in level two, hidden while owned, and restocks after breaking', () => {
   const s = scene(); assert.equal(isGearInStock(s, 'shield'), true);
@@ -38,6 +38,6 @@ test('shield is available in level two, hidden while owned, and restocks after b
   assert.equal(isGearInStock(s, 'shield'), false);
   toggleGear(s, shield); assert.equal(isGearInStock(s, 'shield'), false);
   absorbShieldDamage(s, 50); assert.equal(isGearInStock(s, 'shield'), true);
-  buyGear(s, 'shield'); assert.equal(s.inventory[0].durability, 50); assert.equal(s.gold, 400);
+  buyGear(s, 'shield'); assert.equal(s.inventory[0].durability, 50); assert.equal(s.gold, 640);
   s.currentLevel = 1; assert.equal(isGearInStock(s, 'shield'), false);
 });

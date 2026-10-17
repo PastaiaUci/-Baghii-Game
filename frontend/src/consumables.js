@@ -1,6 +1,6 @@
 export const CONSUMABLES = {
-  'health-potion': { type: 'health-potion', name: 'Poțiune de viață', price: 20, stat: '+10 HP pentru Gdolf', description: 'Reface 10 puncte de viață, fără să depășească viața maximă.', details: ['Click în inventar sau selectează în hotbar și folosește cu click.', 'Nu se consumă dacă ai viața plină.', 'Stackabilă · Stoc nelimitat.'], icon: 'health-potion-icon' },
-  'revival-beer': { type: 'revival-beer', name: 'Bere pentru Tete', price: 10, stat: '+3 HP pentru Tete · Poate învia', description: 'Tete bea o bere și recuperează 3 HP. Dacă are 0 HP, îl învie cu 3 HP; apoi îl poți chema din inventar.', details: ['Click în inventar sau folosește din hotbar.', 'Nu se consumă dacă Tete are 25/25 HP.', 'Stackabilă · Stoc nelimitat.'], icon: 'revival-beer-icon' },
+  'health-potion': { type: 'health-potion', name: 'Poțiune de viață', price: 20, stat: '+10 HP pentru Gdolf', description: 'Reface 10 puncte de viață, fără să depășească viața maximă.', details: ['Click în inventar sau selectează în hotbar și folosește cu click.', 'Nu se consumă dacă ai viața plină. Cooldown: 3 secunde.', 'Stackabilă · Stoc nelimitat.'], icon: 'health-potion-icon' },
+  'revival-beer': { type: 'revival-beer', name: 'Bere pentru Tete', price: 10, stat: '+3 HP pentru Tete · Poate învia', description: 'Tete bea o bere și recuperează 3 HP. Dacă are 0 HP, îl învie cu 3 HP; apoi îl poți chema cu Summon din panoul de party.', details: ['Click în inventar sau folosește din hotbar.', 'Nu se consumă dacă Tete are 25/25 HP.', 'Stackabilă · Stoc nelimitat.'], icon: 'revival-beer-icon' },
 };
 export function addConsumable(scene, type, count = 1) {
   const product = CONSUMABLES[type];

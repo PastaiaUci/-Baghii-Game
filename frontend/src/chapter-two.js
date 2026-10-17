@@ -132,7 +132,7 @@ export function enterLevelTwo(scene) {
   scene.add.text(800, 275, 'AUSTRIA · NIVELUL 2', { fontFamily: 'Georgia', fontSize: '28px', color: '#344d53' }).setOrigin(0.5);
   scene.add.text(800, 318, 'Pe urmele lui Mr. Grain / Bobiță', { fontFamily: 'Arial', fontSize: '15px', color: '#415c60' }).setOrigin(0.5);
   scene.setQuest('Nivelul 2 · În căutarea lui Bobiță', 'Mr. Grain a plecat supărat în Austria. Explorează satul alpin împreună cu Tete.');
-  showChapterTwoTitle(scene);
+  if (!scene.restoringSave) showChapterTwoTitle(scene);
 }
 
 export function showChapterTwoTitle(scene) {

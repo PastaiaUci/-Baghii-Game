@@ -14,6 +14,7 @@ test('three unique medallions stack in inventory and are exchanged exactly once'
   assert.equal(s.inventory[0].quantity, 3); assert.equal(s.luisQuest.count, 3);
   assert.equal(completeLuisQuest(s), true); assert.equal(s.inventory[0].type, 'empty');
   assert.equal(s.luisQuest.status, 'completed'); assert.equal(completeLuisQuest(s), false);
+  assert.equal(s.characterLevel, 2); assert.equal(s.characterXp, 0); assert.equal(s.statPoints, 2);
 });
 test('full inventory leaves the medallion available for later pickup', () => {
   const s = scene(); s.inventory[0] = { type: 'sword' }; const item = drop();
